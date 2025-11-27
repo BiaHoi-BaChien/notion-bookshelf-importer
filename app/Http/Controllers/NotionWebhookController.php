@@ -29,19 +29,26 @@ class NotionWebhookController extends Controller
         ]);
 
         $payload = $request->validate([
-            'id' => ['required', 'integer'],
+            'id' => ['nullable', 'integer', 'required_without:page_id'],
+            'page_id' => ['nullable', 'string', 'required_without:id'],
             'product_url' => ['required', 'url'],
         ]);
 
         $this->logDebug('Webhook payload validated', $payload);
 
-        $pageId = $this->notionService->findPageIdByUniqueId((int) $payload['id']);
+        $pageId = $payload['page_id'] ?? null;
 
-        if (! $pageId) {
-            abort(Response::HTTP_NOT_FOUND, "Notion page not found for ID {$payload['id']}.");
+        if (! $pageId && isset($payload['id'])) {
+            $pageId = $this->notionService->findPageIdByUniqueId((int) $payload['id']);
+
+            if (! $pageId) {
+                abort(Response::HTTP_NOT_FOUND, "Notion page not found for ID {$payload['id']}.");
+            }
+
+            $this->logDebug('Notion page resolved', ['unique_id' => $payload['id'], 'page_id' => $pageId]);
+        } else {
+            $this->logDebug('Notion page provided', ['page_id' => $pageId]);
         }
-
-        $this->logDebug('Notion page resolved', ['unique_id' => $payload['id'], 'page_id' => $pageId]);
 
         $extracted = $this->bookExtractionService->extractFromProductUrl($payload['product_url']);
 
