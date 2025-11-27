@@ -41,12 +41,12 @@ class NotionWebhookControllerTest extends TestCase
         $notionService->shouldReceive('findPageIdByUniqueId')->never();
         $notionService->shouldReceive('updatePageProperties')
             ->once()
-            ->with('BOOK-39', ['title' => 'Example Book']);
+            ->with('123e4567-e89b-12d3-a456-426614174000', ['title' => 'Example Book']);
 
         $controller = new NotionWebhookController($bookExtractionService, $notionService);
 
         $request = Request::create('/', 'POST', [
-            'ID' => 'BOOK-39',
+            'ID' => '123e4567-e89b-12d3-a456-426614174000',
             '商品URL' => 'https://example.com/product',
         ]);
 
@@ -105,6 +105,88 @@ class NotionWebhookControllerTest extends TestCase
         $this->assertSame([
             'status' => 'ok',
             'data' => ['title' => 'Example Book'],
+        ], $response->getData(true));
+    }
+
+    public function test_resolves_page_id_from_prefixed_unique_id(): void
+    {
+        config([
+            'notion.webhook_key' => 'secret',
+            'app.debug' => false,
+        ]);
+
+        $bookExtractionService = \Mockery::mock(BookExtractionService::class);
+        $notionService = \Mockery::mock(NotionService::class);
+
+        $bookExtractionService->shouldReceive('extractFromProductUrl')
+            ->once()
+            ->with('https://example.com/product')
+            ->andReturn(['title' => 'Example Book']);
+
+        $bookExtractionService->shouldReceive('extractionIsComplete')
+            ->once()
+            ->with(['title' => 'Example Book'])
+            ->andReturnTrue();
+
+        $notionService->shouldReceive('findPageIdByUniqueId')
+            ->once()
+            ->with(39, 'BOOK')
+            ->andReturn('resolved-page-id');
+
+        $notionService->shouldReceive('updatePageProperties')
+            ->once()
+            ->with('resolved-page-id', ['title' => 'Example Book']);
+
+        $controller = new NotionWebhookController($bookExtractionService, $notionService);
+
+        $request = Request::create('/', 'POST', [
+            'ID' => 'BOOK-39',
+            '商品URL' => 'https://example.com/product',
+        ]);
+
+        $request->headers->set('X-Webhook-Key', 'secret');
+
+        $response = $controller($request);
+
+        $this->assertSame(SymfonyResponse::HTTP_OK, $response->getStatusCode());
+        $this->assertSame([
+            'status' => 'ok',
+            'data' => ['title' => 'Example Book'],
+        ], $response->getData(true));
+    }
+
+    public function test_returns_ng_when_page_id_cannot_be_resolved(): void
+    {
+        config([
+            'notion.webhook_key' => 'secret',
+            'app.debug' => false,
+        ]);
+
+        $bookExtractionService = \Mockery::mock(BookExtractionService::class);
+        $notionService = \Mockery::mock(NotionService::class);
+
+        $bookExtractionService->shouldReceive('extractFromProductUrl')->never();
+        $bookExtractionService->shouldReceive('extractionIsComplete')->never();
+        $notionService->shouldReceive('findPageIdByUniqueId')
+            ->once()
+            ->with(39, 'BOOK')
+            ->andReturnNull();
+
+        $controller = new NotionWebhookController($bookExtractionService, $notionService);
+
+        $request = Request::create('/', 'POST', [
+            'ID' => 'BOOK-39',
+            '商品URL' => 'https://example.com/product',
+        ]);
+
+        $request->headers->set('X-Webhook-Key', 'secret');
+
+        $response = $controller($request);
+
+        $this->assertSame(SymfonyResponse::HTTP_UNPROCESSABLE_ENTITY, $response->getStatusCode());
+        $this->assertSame([
+            'status' => 'ng',
+            'message' => 'Notion page could not be resolved from provided ID.',
         ], $response->getData(true));
     }
 }
