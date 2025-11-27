@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 
 class NotionService
 {
@@ -69,10 +70,14 @@ class NotionService
 
     private function endpoint(string $path): string
     {
-        $dataSourceId = config('notion.data_source_id');
+        $baseUrl = rtrim((string) config('notion.base_url'), '/');
+        $dataSourceId = (string) config('notion.data_source_id');
 
-        return rtrim(config('notion.base_url'), '/')
-            . "/data_sources/{$dataSourceId}/" . ltrim($path, '/');
+        if ($baseUrl === '' || $dataSourceId === '') {
+            throw new InvalidArgumentException('NOTION_BASE_URL and NOTION_DATA_SOURCE_ID must be configured.');
+        }
+
+        return $baseUrl . "/data_sources/{$dataSourceId}/" . ltrim($path, '/');
     }
 
     private function headers(): array
