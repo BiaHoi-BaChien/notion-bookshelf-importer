@@ -28,6 +28,14 @@ Notion から呼び出される Laravel 製の webhook を `routes/api.php` に�
 - `NOTION_BASE_URL`: Notion API のベース URL。
 - `NOTION_PROPERTY_MAPPING`: Webhook で更新するプロパティのマッピング JSON。キー名が抽出結果のキー、`name` が Notion 側のプロパティ名、`type` がプロパティ種別（`title` / `select` / `date` / `number` / `image`）。
 
+### ローカルテスト用サンプル JSON
+
+リポジトリ直下の `samples/` にローカルでの動作確認に使えるサンプル JSON を用意しています。
+
+- `webhook_request.json`: `POST /api/webhook/notion/books` に送信する想定のリクエストボディ。
+- `extraction_response.json`: OpenAI からの抽出結果サンプル（`name` / `author` / `price` / `image`）。
+- `property_mapping.json`: `.env` の `NOTION_PROPERTY_MAPPING` に設定できるサンプルマッピング。
+
 ## 処理フロー
 
 1. `NotionWebhookController` でヘッダー認証とバリデーションを実施。
