@@ -6,6 +6,7 @@ use App\Services\BookExtractionService;
 use App\Services\NotionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -22,7 +23,7 @@ class NotionWebhookController extends Controller
         $this->assertAuthorized($request);
 
         $this->logDebug('Webhook request received', [
-            'headers' => $request->headers->except(['x-webhook-key']),
+            'headers' => Arr::except($request->headers->all(), ['x-webhook-key']),
             'payload' => $request->all(),
             'webhook_key_present' => $request->hasHeader('X-Webhook-Key'),
         ]);
