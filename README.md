@@ -27,7 +27,7 @@ Notion から呼び出される Laravel 製の webhook を `routes/api.php` に�
 - `NOTION_DATA_SOURCE_ID`: Data Source ID（データベース ID ではなく data source を指定）。Unique ID プロパティから page_id を引くために Query する際に利用します。必須です。
 - `NOTION_VERSION`: API バージョン。仕様通り `2025-09-03` をデフォルトに設定。
 - `NOTION_BASE_URL`: Notion API のベース URL（`https://api.notion.com/v1` のようにパスなしで設定し、`/pages` などのサフィックスは付けない）。
-- `NOTION_PROPERTY_MAPPING`: Webhook で更新するプロパティのマッピング JSON。キー名が抽出結果のキー、`name` が Notion 側のプロパティ名、`type` がプロパティ種別（`title` / `select` / `date` / `number` / `image`）。
+- `NOTION_PROPERTY_MAPPING`: Webhook で更新するプロパティのマッピング JSON。キー名が抽出結果のキー、`name` が Notion 側のプロパティ名、`type` がプロパティ種別（`title` / `select` / `date` / `number` / `image`）。サンプルのデフォルト値は抽出結果の 4 項目（`name` / `author` / `price` / `image`）に対応しています。追加で日付などを扱いたい場合は、抽出処理を拡張したうえで `{"date":{"name":"購入日","type":"date"}}` のように追記してください。
 
 ### ローカルテスト用サンプル JSON
 
@@ -35,7 +35,7 @@ Notion から呼び出される Laravel 製の webhook を `routes/api.php` に�
 
 - `webhook_request.json`: `POST /api/webhook/notion/books` に送信する想定のリクエストボディ。
 - `extraction_response.json`: Amazon 商品ページから抽出した結果サンプル（`name` / `author` / `price` / `image`）。
-- `property_mapping.json`: `.env` の `NOTION_PROPERTY_MAPPING` に設定できるサンプルマッピング。
+- `property_mapping.json`: `.env` の `NOTION_PROPERTY_MAPPING` に設定できるサンプルマッピング（抽出結果の 4 項目のみをマッピング）。
 
 ## テスト実行方法
 
