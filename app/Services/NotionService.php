@@ -87,11 +87,10 @@ class NotionService
             throw new InvalidArgumentException('NOTION_BASE_URL must include a valid scheme and host.');
         }
 
-        if ($pathInBase !== '') {
-            throw new InvalidArgumentException('NOTION_BASE_URL must not include any path (e.g., do not append /pages).');
-        }
-
         $normalizedBase = sprintf('%s://%s%s', $scheme, $host, $port);
+        if ($pathInBase !== '') {
+            $normalizedBase .= '/' . $pathInBase;
+        }
 
         return $normalizedBase . "/data_sources/{$dataSourceId}/" . ltrim($path, '/');
     }
