@@ -8,51 +8,50 @@ use Tests\TestCase;
 
 class BookExtractionServiceTest extends TestCase
 {
-    public function test_extracts_book_fields_from_amazon_html(): void
+    public function test_extracts_book_fields_from_product_html(): void
     {
         $html = <<<'HTML'
-<html>
-    <body>
-        <span id="productTitle">  Example Book Title  </span>
-        <div class="author">
-            <a class="contributorNameID">Author One</a>
-            <a class="contributorNameID">Author Two</a>
-        </div>
-        <div id="kindle-price">
-            <span class="a-offscreen">￥1,234</span>
-        </div>
-        <div id="imgTagWrapperId">
-            <img data-old-hires="https://example.com/large.jpg" src="https://example.com/small.jpg" />
-        </div>
-    </body>
-</html>
-HTML;
+        <html>
+            <body>
+                <span id="productTitle">サンプル書籍タイトル</span>
+                <div id="bylineInfo">
+                    <span class="author notFaded"><a class="a-link-normal">著者一郎</a></span>
+                    <span class="author notFaded"><a class="a-link-normal">著者二郎</a></span>
+                </div>
+                <div id="priceInsideBuyBox_feature_div">
+                    <span class="a-offscreen">￥1,234</span>
+                </div>
+                <div id="imgTagWrapperId">
+                    <img data-old-hires="https://example.test/cover.jpg" />
+                </div>
+            </body>
+        </html>
+        HTML;
 
         Http::fake([
-            'https://example.com/book' => Http::response($html, 200),
+            'https://example.test/product' => Http::response($html, 200),
         ]);
 
         $service = new BookExtractionService();
-        $extracted = $service->extractFromProductUrl('https://example.com/book');
 
-        $this->assertSame('Example Book Title', $extracted['name']);
-        $this->assertSame('Author One, Author Two', $extracted['author']);
+        $extracted = $service->extractFromProductUrl('https://example.test/product');
+
+        $this->assertSame('サンプル書籍タイトル', $extracted['name']);
+        $this->assertSame('著者一郎, 著者二郎', $extracted['author']);
         $this->assertSame(1234.0, $extracted['price']);
-        $this->assertSame('https://example.com/large.jpg', $extracted['image']);
+        $this->assertSame('https://example.test/cover.jpg', $extracted['image']);
+        $this->assertTrue($service->extractionIsComplete($extracted));
     }
 
-    public function test_returns_null_fields_when_html_unavailable(): void
+    public function test_extraction_is_complete_detects_missing_values(): void
     {
-        Http::fake([
-            'https://example.com/unreachable' => Http::response('Unavailable', 500),
-        ]);
-
         $service = new BookExtractionService();
-        $extracted = $service->extractFromProductUrl('https://example.com/unreachable');
 
-        $this->assertNull($extracted['name']);
-        $this->assertNull($extracted['author']);
-        $this->assertNull($extracted['price']);
-        $this->assertNull($extracted['image']);
+        $this->assertFalse($service->extractionIsComplete([
+            'name' => 'タイトル',
+            'author' => null,
+            'price' => 1200.0,
+            'image' => 'https://example.test/cover.jpg',
+        ]));
     }
 }

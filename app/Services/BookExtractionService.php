@@ -33,7 +33,7 @@ class BookExtractionService
         $dom->loadHTML($productHtml);
         $xpath = new DOMXPath($dom);
 
-        $name = $this->extractText($xpath, '//*[@id="productTitle"]');
+        $name = $this->extractText($xpath, '//*[@id="productTitle"] | //*[@id="ebooksProductTitle"]');
         $author = $this->extractAuthors($xpath);
         $price = $this->extractPrice($xpath);
         $image = $this->extractImageUrl($xpath);
@@ -50,7 +50,11 @@ class BookExtractionService
 
     private function extractAuthors(DOMXPath $xpath): ?string
     {
-        $nodes = $xpath->query('//a[contains(@class,"contributorNameID")] | //span[contains(@class,"author")]//a');
+        $nodes = $xpath->query(
+            '//a[contains(@class,"contributorNameID")]'
+            . ' | //span[contains(@class,"author")]//a'
+            . ' | //*[@id="bylineInfo"]//a[contains(@class,"a-link-normal")]'
+        );
 
         if (! $nodes) {
             return null;
@@ -75,9 +79,11 @@ class BookExtractionService
     {
         $priceText = $this->extractText(
             $xpath,
-            '//*[@id="kindle-price"]//*[contains(@class,"a-offscreen")]
-            | //*[@id="kindle-store-price"]//*[contains(@class,"a-offscreen")]
-            | //*[@id="kindle-price-inside-buybox"]//*[contains(@class,"a-offscreen")]'
+            '//*[@id="kindle-price"]//*[contains(@class,"a-offscreen")]'
+            . ' | //*[@id="kindle-store-price"]//*[contains(@class,"a-offscreen")]'
+            . ' | //*[@id="kindle-price-inside-buybox"]//*[contains(@class,"a-offscreen")]'
+            . ' | //*[@id="priceInsideBuyBox_feature_div"]//*[contains(@class,"a-offscreen")]'
+            . ' | //span[contains(@class,"a-price")]/span[contains(@class,"a-offscreen")]'
         );
 
         if ($priceText === null) {
@@ -97,7 +103,7 @@ class BookExtractionService
 
     private function extractImageUrl(DOMXPath $xpath): ?string
     {
-        $node = $xpath->query('//*[@id="imgTagWrapperId"]//img')->item(0);
+        $node = $xpath->query('//*[@id="imgTagWrapperId"]//img | //*[@id="ebooksImgBlkFront"] | //*[@id="imgBlkFront"]')->item(0);
 
         if (! $node) {
             return null;
@@ -132,7 +138,11 @@ class BookExtractionService
     private function fetchProductHtml(string $productUrl): string
     {
         try {
-            $response = Http::get($productUrl);
+            $response = Http::withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                    . '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Accept-Language' => 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7',
+            ])->get($productUrl);
 
             if ($response->successful()) {
                 return $response->body() ?? '';
@@ -142,6 +152,29 @@ class BookExtractionService
         }
 
         return '';
+    }
+
+    public function extractionIsComplete(array $extracted): bool
+    {
+        $requiredKeys = ['name', 'author', 'price', 'image'];
+
+        foreach ($requiredKeys as $key) {
+            if (! array_key_exists($key, $extracted)) {
+                return false;
+            }
+
+            $value = $extracted[$key];
+
+            if ($value === null) {
+                return false;
+            }
+
+            if (is_string($value) && trim($value) === '') {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function emptyExtraction(): array
