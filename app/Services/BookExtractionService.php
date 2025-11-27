@@ -247,6 +247,11 @@ class BookExtractionService
             . ' | //*[@id="kindle-store-price"]//*[contains(@class,"a-offscreen")]'
             . ' | //*[@id="kindle-price-inside-buybox"]//*[contains(@class,"a-offscreen")]'
             . ' | //*[@id="priceInsideBuyBox_feature_div"]//*[contains(@class,"a-offscreen")]'
+            . ' | //*[@id="corePrice_feature_div"]//*[contains(@class,"a-offscreen")]'
+            . ' | //*[@id="corePrice_feature_div"]//span[@data-a-color="price"]'
+            . ' | //*[@id="snsPriceMessage"]//*[contains(@class,"a-offscreen")]'
+            . ' | //*[@id="tmmSwatches"]//span[contains(@class,"a-color-price")]'
+            . ' | //meta[@itemprop="price"]/@content'
             . ' | //span[contains(@class,"a-price")]/span[contains(@class,"a-offscreen")]'
         );
 
