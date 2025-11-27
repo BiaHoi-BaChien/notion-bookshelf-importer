@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class BookExtractionService
@@ -29,6 +30,13 @@ class BookExtractionService
                     ],
                 ],
             ]);
+
+        if (config('app.debug')) {
+            Log::debug('OpenAI chat completion response', [
+                'status' => $response->status(),
+                'body' => $response->json(),
+            ]);
+        }
 
         $response->throw();
 
