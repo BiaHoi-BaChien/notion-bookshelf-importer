@@ -37,6 +37,7 @@ class NotionWebhookControllerTest extends TestCase
             ->once()
             ->with(['title' => 'Example Book'])
             ->andReturnTrue();
+        $bookExtractionService->shouldReceive('extractionHasAllButPrice')->never();
 
         $notionService->shouldReceive('findPageIdByUniqueId')->never();
         $notionService->shouldReceive('updatePageProperties')
@@ -80,6 +81,7 @@ class NotionWebhookControllerTest extends TestCase
             ->once()
             ->with(['title' => 'Example Book'])
             ->andReturnTrue();
+        $bookExtractionService->shouldReceive('extractionHasAllButPrice')->never();
 
         $notionService->shouldReceive('findPageIdByUniqueId')
             ->once()
@@ -127,6 +129,7 @@ class NotionWebhookControllerTest extends TestCase
             ->once()
             ->with(['title' => 'Example Book'])
             ->andReturnTrue();
+        $bookExtractionService->shouldReceive('extractionHasAllButPrice')->never();
 
         $notionService->shouldReceive('findPageIdByUniqueId')
             ->once()
@@ -155,6 +158,63 @@ class NotionWebhookControllerTest extends TestCase
         ], $response->getData(true));
     }
 
+    public function test_updates_page_when_price_is_missing(): void
+    {
+        config([
+            'notion.webhook_key' => 'secret',
+            'app.debug' => false,
+        ]);
+
+        $bookExtractionService = \Mockery::mock(BookExtractionService::class);
+        $notionService = \Mockery::mock(NotionService::class);
+
+        $extracted = [
+            'title' => 'Example Book',
+            'price' => null,
+        ];
+
+        $bookExtractionService->shouldReceive('extractFromProductUrl')
+            ->once()
+            ->with('https://example.com/product')
+            ->andReturn($extracted);
+
+        $bookExtractionService->shouldReceive('extractionIsComplete')
+            ->once()
+            ->with($extracted)
+            ->andReturnFalse();
+
+        $bookExtractionService->shouldReceive('extractionHasAllButPrice')
+            ->once()
+            ->with($extracted)
+            ->andReturnTrue();
+
+        $notionService->shouldReceive('findPageIdByUniqueId')
+            ->once()
+            ->with(39, 'BOOK')
+            ->andReturn('resolved-page-id');
+
+        $notionService->shouldReceive('updatePageProperties')
+            ->once()
+            ->with('resolved-page-id', $extracted);
+
+        $controller = new NotionWebhookController($bookExtractionService, $notionService);
+
+        $request = Request::create('/', 'POST', [
+            'ID' => 'BOOK-39',
+            '商品URL' => 'https://example.com/product',
+        ]);
+
+        $request->headers->set('X-Webhook-Key', 'secret');
+
+        $response = $controller($request);
+
+        $this->assertSame(SymfonyResponse::HTTP_OK, $response->getStatusCode());
+        $this->assertSame([
+            'status' => 'ok',
+            'data' => $extracted,
+        ], $response->getData(true));
+    }
+
     public function test_handles_automation_payload_using_page_id(): void
     {
         config([
@@ -174,6 +234,7 @@ class NotionWebhookControllerTest extends TestCase
             ->once()
             ->with(['title' => 'Example Book'])
             ->andReturnTrue();
+        $bookExtractionService->shouldReceive('extractionHasAllButPrice')->never();
 
         $notionService->shouldReceive('findPageIdByUniqueId')->never();
         $notionService->shouldReceive('updatePageProperties')

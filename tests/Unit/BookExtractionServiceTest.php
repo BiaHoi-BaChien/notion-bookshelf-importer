@@ -187,4 +187,23 @@ class BookExtractionServiceTest extends TestCase
             'image' => 'https://example.test/cover.jpg',
         ]));
     }
+
+    public function test_extraction_has_all_but_price_detects_missing_price_only(): void
+    {
+        $service = new BookExtractionService();
+
+        $this->assertTrue($service->extractionHasAllButPrice([
+            'name' => 'タイトル',
+            'author' => '著者',
+            'price' => null,
+            'image' => 'https://example.test/cover.jpg',
+        ]));
+
+        $this->assertFalse($service->extractionHasAllButPrice([
+            'name' => null,
+            'author' => '著者',
+            'price' => null,
+            'image' => 'https://example.test/cover.jpg',
+        ]));
+    }
 }

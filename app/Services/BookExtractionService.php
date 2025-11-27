@@ -388,6 +388,35 @@ class BookExtractionService
         return true;
     }
 
+    public function extractionHasAllButPrice(array $extracted): bool
+    {
+        $requiredKeys = ['name', 'author', 'image'];
+
+        foreach ($requiredKeys as $key) {
+            if (! array_key_exists($key, $extracted)) {
+                return false;
+            }
+
+            $value = $extracted[$key];
+
+            if ($value === null) {
+                return false;
+            }
+
+            if (is_string($value) && trim($value) === '') {
+                return false;
+            }
+        }
+
+        if (! array_key_exists('price', $extracted)) {
+            return false;
+        }
+
+        $price = $extracted['price'];
+
+        return $price === null || (is_string($price) && trim($price) === '');
+    }
+
     private function emptyExtraction(): array
     {
         return [
