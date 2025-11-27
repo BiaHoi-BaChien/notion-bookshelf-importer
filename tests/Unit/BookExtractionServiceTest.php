@@ -43,6 +43,37 @@ class BookExtractionServiceTest extends TestCase
         $this->assertTrue($service->extractionIsComplete($extracted));
     }
 
+    public function test_extracts_price_from_kindle_alc_price_row(): void
+    {
+        $html = <<<'HTML'
+        <html>
+            <body>
+                <span id="productTitle">サンプル書籍タイトル</span>
+                <table>
+                    <tr id="Ebooks-desktop-KINDLE_ALC-prices-kindlePrice" class="celwidget kindle-price" aria-label="Kindle 価格: ￥814 (税込)">
+                        <td>
+                            <span class="a-offscreen">￥814</span>
+                        </td>
+                    </tr>
+                </table>
+                <div id="imgTagWrapperId">
+                    <img data-old-hires="https://example.test/cover.jpg" />
+                </div>
+            </body>
+        </html>
+        HTML;
+
+        Http::fake([
+            'https://example.test/product' => Http::response($html, 200),
+        ]);
+
+        $service = new BookExtractionService();
+
+        $extracted = $service->extractFromProductUrl('https://example.test/product');
+
+        $this->assertSame(814.0, $extracted['price']);
+    }
+
     public function test_extraction_is_complete_detects_missing_values(): void
     {
         $service = new BookExtractionService();
