@@ -82,6 +82,12 @@ class NotionService
         $mapping = config('notion.property_mapping');
         $payload = [];
 
+        if ($mapping === [] || $mapping === null) {
+            Log::error('Notion property mapping is empty. Set NOTION_PROPERTY_MAPPING to map extracted fields.');
+
+            throw new InvalidArgumentException('NOTION_PROPERTY_MAPPING must be configured to build page properties.');
+        }
+
         $builder = [
             'title' => fn ($value) => ['title' => [[
                 'text' => ['content' => $value],
@@ -112,6 +118,15 @@ class NotionService
             if (isset($builder[$type])) {
                 $payload[$propertyName] = $builder[$type]($value);
             }
+        }
+
+        if ($payload === []) {
+            Log::warning('No Notion properties were built from the extracted data and mapping.', [
+                'extracted_keys' => array_keys($properties),
+                'mapping_keys' => array_keys($mapping),
+            ]);
+
+            throw new InvalidArgumentException('No Notion properties could be built from the provided mapping.');
         }
 
         return $payload;
