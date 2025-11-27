@@ -22,10 +22,7 @@ class NotionService
             'filter' => [
                 'property' => 'ID',
                 'unique_id' => [
-                    'equals' => array_filter([
-                        'number' => $uniqueId,
-                        'prefix' => $uniqueIdPrefix,
-                    ], fn ($value) => $value !== null),
+                    'equals' => $uniqueId,
                 ],
             ],
         ];
