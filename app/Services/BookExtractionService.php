@@ -34,10 +34,17 @@ class BookExtractionService
         $dom->loadHTML('<?xml encoding="UTF-8">' . $productHtml);
         $xpath = new DOMXPath($dom);
 
+        $structuredData = $this->extractFromStructuredData($xpath);
+
         $name = $this->extractText($xpath, '//*[@id="productTitle"] | //*[@id="ebooksProductTitle"]');
         $author = $this->extractAuthors($xpath);
         $price = $this->extractPrice($xpath);
         $image = $this->extractImageUrl($xpath);
+
+        $name ??= $structuredData['name'];
+        $author ??= $structuredData['author'];
+        $price ??= $structuredData['price'];
+        $image ??= $structuredData['image'];
 
         libxml_clear_errors();
 
@@ -47,6 +54,153 @@ class BookExtractionService
             'price' => $price,
             'image' => $image,
         ];
+    }
+
+    private function extractFromStructuredData(DOMXPath $xpath): array
+    {
+        $result = [
+            'name' => null,
+            'author' => null,
+            'price' => null,
+            'image' => null,
+        ];
+
+        $nodes = $xpath->query('//script[@type="application/ld+json"]');
+
+        if (! $nodes) {
+            return $result;
+        }
+
+        foreach ($nodes as $node) {
+            $json = $this->normaliseText($node->textContent ?? '');
+
+            if ($json === '') {
+                continue;
+            }
+
+            $decoded = json_decode($json, true);
+
+            if (! is_array($decoded)) {
+                continue;
+            }
+
+            foreach ($this->normaliseStructuredData($decoded) as $entry) {
+                $this->fillStructuredDataResult($result, $entry);
+
+                if ($this->extractionIsComplete($result)) {
+                    break 2;
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    private function normaliseStructuredData(array $data): array
+    {
+        if (array_is_list($data)) {
+            return $data;
+        }
+
+        if (array_key_exists('@graph', $data) && is_array($data['@graph'])) {
+            return $data['@graph'];
+        }
+
+        return [$data];
+    }
+
+    private function fillStructuredDataResult(array &$result, array $entry): void
+    {
+        $name = $this->normaliseText($entry['name'] ?? '');
+
+        if ($result['name'] === null && $name !== '') {
+            $result['name'] = $name;
+        }
+
+        if ($result['author'] === null && array_key_exists('author', $entry)) {
+            $result['author'] = $this->normaliseStructuredAuthors($entry['author']);
+        }
+
+        if ($result['price'] === null && array_key_exists('offers', $entry)) {
+            $result['price'] = $this->extractStructuredPrice($entry['offers']);
+        }
+
+        if ($result['image'] === null && array_key_exists('image', $entry)) {
+            $result['image'] = $this->extractStructuredImage($entry['image']);
+        }
+    }
+
+    private function normaliseStructuredAuthors(mixed $author): ?string
+    {
+        if (is_string($author)) {
+            $normalised = $this->normaliseText($author);
+
+            return $normalised !== '' ? $normalised : null;
+        }
+
+        if (! is_array($author)) {
+            return null;
+        }
+
+        $authors = [];
+
+        foreach ($author as $entry) {
+            if (is_array($entry) && array_key_exists('name', $entry)) {
+                $authors[] = $this->normaliseText($entry['name']);
+            }
+        }
+
+        $authors = array_values(array_filter(array_unique($authors)));
+
+        return $authors !== [] ? implode(', ', $authors) : null;
+    }
+
+    private function extractStructuredPrice(mixed $offers): ?float
+    {
+        $price = null;
+
+        if (is_array($offers) && array_is_list($offers) && $offers !== []) {
+            $price = $offers[0]['price'] ?? null;
+        }
+
+        if (is_array($offers) && ! array_is_list($offers)) {
+            $price = $offers['price'] ?? ($offers['priceSpecification']['price'] ?? null);
+        }
+
+        if ($price === null) {
+            return null;
+        }
+
+        if (is_numeric($price)) {
+            return (float) $price;
+        }
+
+        if (is_string($price)) {
+            return $this->parsePriceText($price);
+        }
+
+        return null;
+    }
+
+    private function extractStructuredImage(mixed $image): ?string
+    {
+        if (is_string($image)) {
+            $normalised = $this->normaliseText($image);
+
+            return $normalised !== '' ? $normalised : null;
+        }
+
+        if (is_array($image) && $image !== []) {
+            $first = reset($image);
+
+            if (is_string($first)) {
+                $normalised = $this->normaliseText($first);
+
+                return $normalised !== '' ? $normalised : null;
+            }
+        }
+
+        return null;
     }
 
     private function extractAuthors(DOMXPath $xpath): ?string
