@@ -47,6 +47,13 @@ class NotionService
 
         $results = $response->json('results', []);
 
+        if (config('app.debug')) {
+            Log::debug('Notion query results', [
+                'unique_id' => $uniqueId,
+                'results' => $results,
+            ]);
+        }
+
         if (count($results) === 0) {
             return null;
         }
