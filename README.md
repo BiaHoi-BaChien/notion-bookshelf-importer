@@ -37,6 +37,16 @@ Notion から呼び出される Laravel 製の webhook を `routes/api.php` に�
 - `extraction_response.json`: Amazon 商品ページから抽出した結果サンプル（`name` / `author` / `price` / `image`）。
 - `property_mapping.json`: `.env` の `NOTION_PROPERTY_MAPPING` に設定できるサンプルマッピング。
 
+## テスト実行方法
+
+1. Composer で依存関係をインストールします。
+
+   ```bash
+   composer install
+   ```
+
+2. `php artisan test` を実行します（オプション `--filter` や `--testsuite` も利用可能です）。
+
 ## 処理フロー
 
 1. `NotionWebhookController` でヘッダー認証とバリデーションを実施。
