@@ -176,10 +176,28 @@ class BookExtractionService
             ])->get($productUrl);
 
             if ($response->successful()) {
-                return $response->body() ?? '';
+                $html = $response->body() ?? '';
+
+                if ($html === '') {
+                    Log::warning('Amazon product HTML was empty after a successful response', [
+                        'product_url' => $productUrl,
+                        'status' => $response->status(),
+                    ]);
+                }
+
+                return $html;
             }
+
+            Log::warning('Amazon product HTML fetch failed', [
+                'product_url' => $productUrl,
+                'status' => $response->status(),
+                'reason' => $response->reason(),
+            ]);
         } catch (\Throwable $exception) {
-            // Swallow the exception to allow downstream handling based on missing HTML.
+            Log::error('Amazon product HTML fetch threw an exception', [
+                'product_url' => $productUrl,
+                'error' => $exception->getMessage(),
+            ]);
         }
 
         return '';
