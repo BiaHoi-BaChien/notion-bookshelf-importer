@@ -1,4 +1,22 @@
 {
-  "ID": "BOOK-39",
-  "商品URL": "https://www.amazon.co.jp/dp/410101013X"
+  "source": {
+    "type": "automation"
+  },
+  "data": {
+    "object": "page",
+    "id": "826eb1f6a6fb45b38d649ef82911bb61",
+    "properties": {
+      "ID": {
+        "type": "unique_id",
+        "unique_id": {
+          "prefix": "BOOK",
+          "number": 408
+        }
+      },
+      "商品URL": {
+        "type": "url",
+        "url": "https://www.amazon.co.jp/dp/410101013X"
+      }
+    }
+  }
 }

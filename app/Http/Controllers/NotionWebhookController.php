@@ -28,10 +28,7 @@ class NotionWebhookController extends Controller
             'webhook_key_present' => $request->hasHeader('X-Webhook-Key'),
         ]);
 
-        $payload = $request->validate([
-            'ID' => ['required', 'string'],
-            '商品URL' => ['required', 'url'],
-        ]);
+        $payload = $this->normalizePayload($request);
 
         $this->logDebug('Webhook payload validated', $payload);
 
@@ -85,6 +82,35 @@ class NotionWebhookController extends Controller
         }
 
         $this->logDebug('Webhook authorized');
+    }
+
+    private function normalizePayload(Request $request): array
+    {
+        if ($request->has(['ID', '商品URL'])) {
+            return $request->validate([
+                'ID' => ['required', 'string'],
+                '商品URL' => ['required', 'url'],
+            ]);
+        }
+
+        if ($request->has('data')) {
+            $request->validate([
+                'data' => ['required', 'array'],
+                'data.id' => ['required', 'string'],
+                'data.properties' => ['required', 'array'],
+                'data.properties.商品URL.url' => ['required', 'url'],
+            ]);
+
+            return [
+                'ID' => $request->input('data.id'),
+                '商品URL' => $request->input('data.properties.商品URL.url'),
+            ];
+        }
+
+        return $request->validate([
+            'ID' => ['required', 'string'],
+            '商品URL' => ['required', 'url'],
+        ]);
     }
 
     private function resolvePageId(string $providedId): ?string
