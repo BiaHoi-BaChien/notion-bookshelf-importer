@@ -7,16 +7,16 @@ Kindle 商品ページの URL を基にタイトル・価格・著者情報な�
 Notion から呼び出される Laravel 製の webhook を `routes/api.php` に定義しています。`POST /api/webhook/notion/books` に対して以下の形式でリクエストしてください。
 
 - ヘッダー: `X-Webhook-Key` に `.env` の `WEBHOOK_AUTH_KEY` と同じ値を設定（時刻署名不要、`hash_equals` で比較）。
-- ボディ: JSON で `id`（Notion の Unique ID プロパティの値）と `product_url`（本の URL）の 2 項目。
+- ボディ: JSON で `ID`（Notion の Unique ID もしくは page_id）と `商品URL`（本の URL）の 2 項目。
 
 ```json
 {
-  "id": 39,
-  "product_url": "https://www.amazon.co.jp/dp/..."
+  "ID": "BOOK-39",
+  "商品URL": "https://www.amazon.co.jp/dp/..."
 }
 ```
 
-リクエストで受け取った Unique ID（例: `39`）を使って `data_sources/{NOTION_DATA_SOURCE_ID}/query` を呼び、検索結果の page_id を使って更新します。`NOTION_DATA_SOURCE_ID` が未設定、あるいは該当レコードが見つからない場合は 4xx を返します。
+リクエストで受け取った `ID` が数値の場合は Unique ID とみなし、`data_sources/{NOTION_DATA_SOURCE_ID}/query` を呼び出して検索結果の page_id を使って更新します。`NOTION_DATA_SOURCE_ID` が未設定、あるいは該当レコードが見つからない場合は 4xx を返します。数値以外の値が渡された場合はそれを page_id として直接更新します。
 
 ## 環境変数
 

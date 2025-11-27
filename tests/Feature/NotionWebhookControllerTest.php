@@ -39,8 +39,8 @@ class NotionWebhookControllerTest extends TestCase
         Log::spy();
 
         $response = $this->postJson(route('webhook.notion.books'), [
-            'page_id' => 'BOOK-39',
-            'product_url' => 'https://example.test/book',
+            'ID' => 'BOOK-39',
+            '商品URL' => 'https://example.test/book',
         ], [
             'X-Webhook-Key' => 'secret',
         ]);
