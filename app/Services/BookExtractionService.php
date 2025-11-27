@@ -14,22 +14,30 @@ class BookExtractionService
     {
         $productHtml = $this->fetchProductHtml($productUrl);
 
-        $response = Http::withToken(config('notion.openai_api_key'))
-            ->post('https://api.openai.com/v1/chat/completions', [
-                'model' => config('notion.openai_model'),
-                'temperature' => 0,
-                'response_format' => ['type' => 'json_object'],
-                'messages' => [
-                    [
-                        'role' => 'system',
-                        'content' => $this->systemPrompt(),
-                    ],
-                    [
-                        'role' => 'user',
-                        'content' => $this->userPrompt($productUrl, $productHtml),
-                    ],
+        $payload = [
+            'model' => config('notion.openai_model'),
+            'temperature' => 0,
+            'response_format' => ['type' => 'json_object'],
+            'messages' => [
+                [
+                    'role' => 'system',
+                    'content' => $this->systemPrompt(),
                 ],
+                [
+                    'role' => 'user',
+                    'content' => $this->userPrompt($productUrl, $productHtml),
+                ],
+            ],
+        ];
+
+        if (config('app.debug')) {
+            Log::debug('OpenAI chat completion request', [
+                'body' => $payload,
             ]);
+        }
+
+        $response = Http::withToken(config('notion.openai_api_key'))
+            ->post('https://api.openai.com/v1/chat/completions', $payload);
 
         if (config('app.debug')) {
             Log::debug('OpenAI chat completion response', [
