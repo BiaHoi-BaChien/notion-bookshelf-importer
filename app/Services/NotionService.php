@@ -9,6 +9,46 @@ use InvalidArgumentException;
 
 class NotionService
 {
+    public function findPageIdByUniqueId(int $uniqueId): ?string
+    {
+        $dataSourceId = config('notion.data_source_id');
+
+        if (! $dataSourceId) {
+            throw new InvalidArgumentException('NOTION_DATA_SOURCE_ID must be configured to query by unique ID.');
+        }
+
+        $payload = [
+            'filter' => [
+                'property' => 'ID',
+                'unique_id' => [
+                    'equals' => [
+                        'number' => $uniqueId,
+                    ],
+                ],
+            ],
+        ];
+
+        $response = Http::withHeaders($this->headers())
+            ->post($this->endpoint("data_sources/{$dataSourceId}/query"), $payload);
+
+        if ($response->failed()) {
+            Log::error('Failed to query Notion data source', [
+                'unique_id' => $uniqueId,
+                'body' => $response->json(),
+            ]);
+
+            $response->throw();
+        }
+
+        $results = $response->json('results', []);
+
+        if (count($results) === 0) {
+            return null;
+        }
+
+        return $results[0]['id'] ?? null;
+    }
+
     public function updatePageProperties(string $pageId, array $properties): void
     {
         $payload = [
