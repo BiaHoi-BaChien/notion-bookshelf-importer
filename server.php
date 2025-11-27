@@ -1,15 +1,11 @@
 <?php
 
-$uri = urldecode(
-    parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)
-);
+$uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
 
-$paths = require __DIR__.'/vendor/laravel/framework/src/Illuminate/Foundation/resources/paths.php';
+$publicPath = __DIR__.'/public';
 
-$uri = trim($uri, '/');
-
-if ($uri !== '' && file_exists($paths['public'].'/'.$uri)) {
+if ($uri !== '/' && file_exists($publicPath.$uri)) {
     return false;
 }
 
-require_once $paths['public'].'/index.php';
+require_once $publicPath.'/index.php';
