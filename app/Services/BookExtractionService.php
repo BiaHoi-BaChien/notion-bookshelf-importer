@@ -7,8 +7,12 @@ use Illuminate\Support\Str;
 
 class BookExtractionService
 {
+    private const HTML_SNIPPET_LIMIT = 8000;
+
     public function extractFromProductUrl(string $productUrl): array
     {
+        $productHtml = $this->fetchProductHtml($productUrl);
+
         $response = Http::withToken(config('notion.openai_api_key'))
             ->post('https://api.openai.com/v1/chat/completions', [
                 'model' => config('notion.openai_model'),
@@ -21,7 +25,7 @@ class BookExtractionService
                     ],
                     [
                         'role' => 'user',
-                        'content' => $this->userPrompt($productUrl),
+                        'content' => $this->userPrompt($productUrl, $productHtml),
                     ],
                 ],
             ]);
@@ -40,13 +44,17 @@ class BookExtractionService
             . 'Respond in Japanese if the page is Japanese, otherwise English. Do not invent data.';
     }
 
-    private function userPrompt(string $productUrl): string
+    private function userPrompt(string $productUrl, string $productHtml): string
     {
-        return sprintf(
+        $htmlSection = $this->formatHtmlForPrompt($productHtml);
+
+        return trim(sprintf(
             "Book product URL: %s\n\n"
+            . "Product page HTML (truncated if long):\n%s\n\n"
             . "Return a JSON object exactly with keys: name, author, price, image.",
-            $productUrl
-        );
+            $productUrl,
+            $htmlSection
+        ));
     }
 
     private function normalisePayload(string $content): array
@@ -59,5 +67,39 @@ class BookExtractionService
             'price' => is_numeric($decoded['price'] ?? null) ? (float) $decoded['price'] : null,
             'image' => $decoded['image'] ?? null,
         ];
+    }
+
+    private function fetchProductHtml(string $productUrl): string
+    {
+        try {
+            $response = Http::get($productUrl);
+
+            if ($response->successful()) {
+                return $response->body() ?? '';
+            }
+        } catch (\Throwable $exception) {
+            // Swallow the exception to allow downstream handling based on missing HTML.
+        }
+
+        return '';
+    }
+
+    private function formatHtmlForPrompt(string $productHtml): string
+    {
+        if ($productHtml === '') {
+            return 'No HTML could be fetched from the product page.';
+        }
+
+        $squishedHtml = Str::of($productHtml)->squish()->value();
+        $limitedHtml = Str::limit($squishedHtml, self::HTML_SNIPPET_LIMIT, '... [truncated]');
+
+        if (Str::length($squishedHtml) > self::HTML_SNIPPET_LIMIT) {
+            return $limitedHtml . sprintf(
+                "\n\nNote: HTML content truncated to the first %d characters to fit the prompt size.",
+                self::HTML_SNIPPET_LIMIT
+            );
+        }
+
+        return $limitedHtml;
     }
 }
