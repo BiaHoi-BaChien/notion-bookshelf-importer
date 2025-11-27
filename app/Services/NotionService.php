@@ -10,7 +10,7 @@ use InvalidArgumentException;
 
 class NotionService
 {
-    public function findPageIdByUniqueId(int $uniqueId): ?string
+    public function findPageIdByUniqueId(int $uniqueId, ?string $uniqueIdPrefix = null): ?string
     {
         $dataSourceId = config('notion.data_source_id');
 
@@ -22,9 +22,10 @@ class NotionService
             'filter' => [
                 'property' => 'ID',
                 'unique_id' => [
-                    'equals' => [
+                    'equals' => array_filter([
                         'number' => $uniqueId,
-                    ],
+                        'prefix' => $uniqueIdPrefix,
+                    ], fn ($value) => $value !== null),
                 ],
             ],
         ];

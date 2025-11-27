@@ -35,20 +35,13 @@ class NotionWebhookController extends Controller
 
         $this->logDebug('Webhook payload validated', $payload);
 
-        $pageId = null;
+        $pageId = $this->resolvePageId($payload['ID']);
 
-        if (ctype_digit($payload['ID'])) {
-            $pageId = $this->notionService->findPageIdByUniqueId((int) $payload['ID']);
-
-            if (! $pageId) {
-                abort(Response::HTTP_NOT_FOUND, "Notion page not found for ID {$payload['ID']}.");
-            }
-
-            $this->logDebug('Notion page resolved', ['unique_id' => $payload['ID'], 'page_id' => $pageId]);
-        } else {
-            $pageId = $payload['ID'];
-
-            $this->logDebug('Notion page provided', ['page_id' => $pageId]);
+        if (! $pageId) {
+            return response()->json([
+                'status' => 'ng',
+                'message' => 'Notion page could not be resolved from provided ID.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $extracted = $this->bookExtractionService->extractFromProductUrl($payload['商品URL']);
@@ -92,6 +85,60 @@ class NotionWebhookController extends Controller
         }
 
         $this->logDebug('Webhook authorized');
+    }
+
+    private function resolvePageId(string $providedId): ?string
+    {
+        if ($this->looksLikePageId($providedId)) {
+            $this->logDebug('Notion page provided', ['page_id' => $providedId]);
+
+            return $providedId;
+        }
+
+        $uniqueId = $this->parseUniqueId($providedId);
+
+        if ($uniqueId === null) {
+            Log::warning('Provided ID could not be parsed as a Notion Unique ID or page_id.', [
+                'provided_id' => $providedId,
+            ]);
+
+            return null;
+        }
+
+        $pageId = $this->notionService->findPageIdByUniqueId($uniqueId['number'], $uniqueId['prefix'] ?? null);
+
+        if ($pageId) {
+            $this->logDebug('Notion page resolved', ['unique_id' => $providedId, 'page_id' => $pageId]);
+        } else {
+            Log::warning('Notion page not found for provided Unique ID.', [
+                'provided_id' => $providedId,
+                'parsed_unique_id' => $uniqueId,
+            ]);
+        }
+
+        return $pageId;
+    }
+
+    private function parseUniqueId(string $id): ?array
+    {
+        if (ctype_digit($id)) {
+            return ['number' => (int) $id];
+        }
+
+        if (preg_match('/^(?<prefix>[A-Za-z]+)-(?<number>\d+)$/', $id, $matches)) {
+            return [
+                'prefix' => $matches['prefix'],
+                'number' => (int) $matches['number'],
+            ];
+        }
+
+        return null;
+    }
+
+    private function looksLikePageId(string $id): bool
+    {
+        return (bool) preg_match('/^[0-9a-fA-F]{32}$/', $id)
+            || (bool) preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/', $id);
     }
 
     private function logDebug(string $message, array $context = []): void
