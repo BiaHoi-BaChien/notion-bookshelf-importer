@@ -46,8 +46,8 @@ class NotionWebhookControllerTest extends TestCase
         $controller = new NotionWebhookController($bookExtractionService, $notionService);
 
         $request = Request::create('/', 'POST', [
-            'page_id' => 'BOOK-39',
-            'product_url' => 'https://example.com/product',
+            'ID' => 'BOOK-39',
+            '商品URL' => 'https://example.com/product',
         ]);
 
         $request->headers->set('X-Webhook-Key', 'secret');
@@ -93,8 +93,8 @@ class NotionWebhookControllerTest extends TestCase
         $controller = new NotionWebhookController($bookExtractionService, $notionService);
 
         $request = Request::create('/', 'POST', [
-            'id' => 39,
-            'product_url' => 'https://example.com/product',
+            'ID' => '39',
+            '商品URL' => 'https://example.com/product',
         ]);
 
         $request->headers->set('X-Webhook-Key', 'secret');

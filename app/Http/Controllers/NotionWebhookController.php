@@ -29,35 +29,36 @@ class NotionWebhookController extends Controller
         ]);
 
         $payload = $request->validate([
-            'id' => ['nullable', 'integer', 'required_without:page_id'],
-            'page_id' => ['nullable', 'string', 'required_without:id'],
-            'product_url' => ['required', 'url'],
+            'ID' => ['required', 'string'],
+            '商品URL' => ['required', 'url'],
         ]);
 
         $this->logDebug('Webhook payload validated', $payload);
 
-        $pageId = $payload['page_id'] ?? null;
+        $pageId = null;
 
-        if (! $pageId && isset($payload['id'])) {
-            $pageId = $this->notionService->findPageIdByUniqueId((int) $payload['id']);
+        if (ctype_digit($payload['ID'])) {
+            $pageId = $this->notionService->findPageIdByUniqueId((int) $payload['ID']);
 
             if (! $pageId) {
-                abort(Response::HTTP_NOT_FOUND, "Notion page not found for ID {$payload['id']}.");
+                abort(Response::HTTP_NOT_FOUND, "Notion page not found for ID {$payload['ID']}.");
             }
 
-            $this->logDebug('Notion page resolved', ['unique_id' => $payload['id'], 'page_id' => $pageId]);
+            $this->logDebug('Notion page resolved', ['unique_id' => $payload['ID'], 'page_id' => $pageId]);
         } else {
+            $pageId = $payload['ID'];
+
             $this->logDebug('Notion page provided', ['page_id' => $pageId]);
         }
 
-        $extracted = $this->bookExtractionService->extractFromProductUrl($payload['product_url']);
+        $extracted = $this->bookExtractionService->extractFromProductUrl($payload['商品URL']);
 
         $this->logDebug('Book data extracted', $extracted);
 
         if (! $this->bookExtractionService->extractionIsComplete($extracted)) {
             Log::warning('Book extraction incomplete', [
                 'page_id' => $pageId,
-                'product_url' => $payload['product_url'],
+                'product_url' => $payload['商品URL'],
             ]);
 
             return response()->json([
