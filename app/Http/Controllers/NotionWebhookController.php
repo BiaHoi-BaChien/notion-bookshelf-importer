@@ -105,7 +105,9 @@ class NotionWebhookController extends Controller
             return null;
         }
 
-        $pageId = $this->notionService->findPageIdByUniqueId($uniqueId['number'], $uniqueId['prefix'] ?? null);
+        $pageId = isset($uniqueId['prefix'])
+            ? $this->notionService->findPageIdByUniqueId($uniqueId['number'], $uniqueId['prefix'])
+            : $this->notionService->findPageIdByUniqueId($uniqueId['number']);
 
         if ($pageId) {
             $this->logDebug('Notion page resolved', ['unique_id' => $providedId, 'page_id' => $pageId]);
