@@ -7,14 +7,16 @@ Kindle 商品ページの URL を基に OpenAI API を用いてタイトル・�
 Notion から呼び出される Laravel 製の webhook を `routes/api.php` に定義しています。`POST /api/webhook/notion/books` に対して以下の形式でリクエストしてください。
 
 - ヘッダー: `X-Webhook-Key` に `.env` の `WEBHOOK_AUTH_KEY` と同じ値を設定（時刻署名不要、`hash_equals` で比較）。
-- ボディ: JSON で `page_id`（Notion ページ ID）と `product_url`（本の URL）の 2 項目。
+- ボディ: JSON で `id`（Notion の Unique ID プロパティの値）と `product_url`（本の URL）の 2 項目。
 
 ```json
 {
-  "page_id": "xxxx",
+  "id": 39,
   "product_url": "https://www.amazon.co.jp/dp/..."
 }
 ```
+
+リクエストで受け取った Unique ID（例: `39`）を使って `data_sources/{NOTION_DATA_SOURCE_ID}/query` を呼び、検索結果の page_id を使って更新します。`NOTION_DATA_SOURCE_ID` が未設定、あるいは該当レコードが見つからない場合は 4xx を返します。
 
 ## 環境変数
 
@@ -23,7 +25,7 @@ Notion から呼び出される Laravel 製の webhook を `routes/api.php` に�
 - `OPENAI_API_KEY` / `OPENAI_MODEL`: OpenAI Chat Completions API への接続設定（デフォルトは `gpt-4o-mini`。アクセス権限がないモデルの場合は別モデルに差し替えてください）。
 - `WEBHOOK_AUTH_KEY`: Notion からのリクエストヘッダーに設定する認証キー。
 - `NOTION_API_KEY`: Notion 公式 API の統合トークン。
-- `NOTION_DATA_SOURCE_ID`: Data Source ID（データベース ID ではなく data source を指定）。Unique ID プロパティなどから page_id を引くために data source を Query する際に利用します。Webhook で page_id が渡される場合は未設定でも更新処理は動作します。
+- `NOTION_DATA_SOURCE_ID`: Data Source ID（データベース ID ではなく data source を指定）。Unique ID プロパティから page_id を引くために Query する際に利用します。必須です。
 - `NOTION_VERSION`: API バージョン。仕様通り `2025-09-03` をデフォルトに設定。
 - `NOTION_BASE_URL`: Notion API のベース URL（`https://api.notion.com/v1` のようにパスなしで設定し、`/pages` などのサフィックスは付けない）。
 - `NOTION_PROPERTY_MAPPING`: Webhook で更新するプロパティのマッピング JSON。キー名が抽出結果のキー、`name` が Notion 側のプロパティ名、`type` がプロパティ種別（`title` / `select` / `date` / `number` / `image`）。

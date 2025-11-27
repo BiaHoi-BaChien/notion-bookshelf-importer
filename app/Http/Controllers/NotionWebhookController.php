@@ -22,14 +22,20 @@ class NotionWebhookController extends Controller
         $this->assertAuthorized($request);
 
         $payload = $request->validate([
-            'page_id' => ['required', 'string'],
+            'id' => ['required', 'integer'],
             'product_url' => ['required', 'url'],
         ]);
+
+        $pageId = $this->notionService->findPageIdByUniqueId((int) $payload['id']);
+
+        if (! $pageId) {
+            abort(Response::HTTP_NOT_FOUND, "Notion page not found for ID {$payload['id']}.");
+        }
 
         $extracted = $this->bookExtractionService->extractFromProductUrl($payload['product_url']);
 
         $this->notionService->updatePageProperties(
-            $payload['page_id'],
+            $pageId,
             $extracted
         );
 
@@ -49,4 +55,5 @@ class NotionWebhookController extends Controller
             abort(Response::HTTP_UNAUTHORIZED, 'Unauthorized');
         }
     }
+
 }
