@@ -134,6 +134,48 @@ class BookExtractionServiceTest extends TestCase
         $this->assertSame(1980.0, $extracted['price']);
     }
 
+    public function test_falls_back_to_structured_data_when_dom_selectors_fail(): void
+    {
+        $html = <<<'HTML'
+        <html>
+            <head>
+                <script type="application/ld+json">
+                    {
+                        "@context": "https://schema.org",
+                        "@type": "Book",
+                        "name": "構造化データから取得したタイトル",
+                        "author": [
+                            {"@type": "Person", "name": "構造化 著者"}
+                        ],
+                        "offers": {
+                            "@type": "Offer",
+                            "price": "1,500"
+                        },
+                        "image": "https://example.test/structured-cover.jpg"
+                    }
+                </script>
+            </head>
+            <body>
+                <div id="placeholder">This page intentionally hides normal product markup.</div>
+            </body>
+        </html>
+        HTML;
+
+        Http::fake([
+            'https://example.test/product-with-structured-data' => Http::response($html, 200),
+        ]);
+
+        $service = new BookExtractionService();
+
+        $extracted = $service->extractFromProductUrl('https://example.test/product-with-structured-data');
+
+        $this->assertSame('構造化データから取得したタイトル', $extracted['name']);
+        $this->assertSame('構造化 著者', $extracted['author']);
+        $this->assertSame(1500.0, $extracted['price']);
+        $this->assertSame('https://example.test/structured-cover.jpg', $extracted['image']);
+        $this->assertTrue($service->extractionIsComplete($extracted));
+    }
+
     public function test_extraction_is_complete_detects_missing_values(): void
     {
         $service = new BookExtractionService();
