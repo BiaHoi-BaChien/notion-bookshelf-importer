@@ -81,7 +81,7 @@ class BookExtractionService
             $xpath,
             '//*[@id="Ebooks-desktop-KINDLE_ALC-prices-kindlePrice"]//*[contains(@class,"a-offscreen")]'
             . ' | '
-            '//*[@id="kindle-price"]//*[contains(@class,"a-offscreen")]'
+            . '//*[@id="kindle-price"]//*[contains(@class,"a-offscreen")]'
             . ' | //*[@id="kindle-store-price"]//*[contains(@class,"a-offscreen")]'
             . ' | //*[@id="kindle-price-inside-buybox"]//*[contains(@class,"a-offscreen")]'
             . ' | //*[@id="priceInsideBuyBox_feature_div"]//*[contains(@class,"a-offscreen")]'
