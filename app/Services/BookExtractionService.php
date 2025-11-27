@@ -2,87 +2,126 @@
 
 namespace App\Services;
 
+use DOMDocument;
+use DOMXPath;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class BookExtractionService
 {
-    private const HTML_SNIPPET_LIMIT = 8000;
-
     public function extractFromProductUrl(string $productUrl): array
     {
         $productHtml = $this->fetchProductHtml($productUrl);
 
-        $payload = [
-            'model' => config('notion.openai_model'),
-            'temperature' => 0,
-            'response_format' => ['type' => 'json_object'],
-            'messages' => [
-                [
-                    'role' => 'system',
-                    'content' => $this->systemPrompt(),
-                ],
-                [
-                    'role' => 'user',
-                    'content' => $this->userPrompt($productUrl, $productHtml),
-                ],
-            ],
-        ];
-
-        if (config('app.debug')) {
-            Log::debug('OpenAI chat completion request', [
-                'body' => $payload,
-            ]);
+        if ($productHtml === '') {
+            return $this->emptyExtraction();
         }
 
-        $response = Http::withToken(config('notion.openai_api_key'))
-            ->post('https://api.openai.com/v1/chat/completions', $payload);
-
-        if (config('app.debug')) {
-            Log::debug('OpenAI chat completion response', [
-                'status' => $response->status(),
-                'body' => $response->json(),
-            ]);
-        }
-
-        $response->throw();
-
-        $content = $response->json('choices.0.message.content');
-
-        return $this->normalisePayload($content);
+        return $this->extractFromHtml($productHtml);
     }
 
-    private function systemPrompt(): string
+    private function extractFromHtml(string $productHtml): array
     {
-        return 'You are a data extractor that reads a book product URL and returns JSON with '
-            . 'strict keys: name (string), author (string), price (number), image (url string).'
-            . 'Respond in Japanese if the page is Japanese, otherwise English. Do not invent data.';
-    }
+        libxml_use_internal_errors(true);
 
-    private function userPrompt(string $productUrl, string $productHtml): string
-    {
-        $htmlSection = $this->formatHtmlForPrompt($productHtml);
+        $dom = new DOMDocument();
+        $dom->loadHTML($productHtml);
+        $xpath = new DOMXPath($dom);
 
-        return trim(sprintf(
-            "Book product URL: %s\n\n"
-            . "Product page HTML (truncated if long):\n%s\n\n"
-            . "Return a JSON object exactly with keys: name, author, price, image.",
-            $productUrl,
-            $htmlSection
-        ));
-    }
+        $name = $this->extractText($xpath, '//*[@id="productTitle"]');
+        $author = $this->extractAuthors($xpath);
+        $price = $this->extractPrice($xpath);
+        $image = $this->extractImageUrl($xpath);
 
-    private function normalisePayload(string $content): array
-    {
-        $decoded = json_decode($content, true) ?: [];
+        libxml_clear_errors();
 
         return [
-            'name' => Str::of($decoded['name'] ?? '')->trim()->value(),
-            'author' => Str::of($decoded['author'] ?? '')->trim()->value(),
-            'price' => is_numeric($decoded['price'] ?? null) ? (float) $decoded['price'] : null,
-            'image' => $decoded['image'] ?? null,
+            'name' => $name,
+            'author' => $author,
+            'price' => $price,
+            'image' => $image,
         ];
+    }
+
+    private function extractAuthors(DOMXPath $xpath): ?string
+    {
+        $nodes = $xpath->query('//a[contains(@class,"contributorNameID")] | //span[contains(@class,"author")]//a');
+
+        if (! $nodes) {
+            return null;
+        }
+
+        $authors = [];
+
+        foreach ($nodes as $node) {
+            $text = $this->normaliseText($node->textContent ?? '');
+
+            if ($text !== '') {
+                $authors[] = $text;
+            }
+        }
+
+        $authors = array_values(array_unique($authors));
+
+        return $authors !== [] ? implode(', ', $authors) : null;
+    }
+
+    private function extractPrice(DOMXPath $xpath): ?float
+    {
+        $priceText = $this->extractText(
+            $xpath,
+            '//*[@id="kindle-price"]//*[contains(@class,"a-offscreen")]
+            | //*[@id="kindle-store-price"]//*[contains(@class,"a-offscreen")]
+            | //*[@id="kindle-price-inside-buybox"]//*[contains(@class,"a-offscreen")]'
+        );
+
+        if ($priceText === null) {
+            return null;
+        }
+
+        $numeric = preg_replace('/[^\d.,]/', '', $priceText);
+
+        if ($numeric === null || $numeric === '') {
+            return null;
+        }
+
+        $normalised = str_replace(',', '', $numeric);
+
+        return is_numeric($normalised) ? (float) $normalised : null;
+    }
+
+    private function extractImageUrl(DOMXPath $xpath): ?string
+    {
+        $node = $xpath->query('//*[@id="imgTagWrapperId"]//img')->item(0);
+
+        if (! $node) {
+            return null;
+        }
+
+        $primary = $node->getAttribute('data-old-hires');
+        $fallback = $node->getAttribute('src');
+
+        $url = $primary !== '' ? $primary : $fallback;
+
+        return $url !== '' ? $url : null;
+    }
+
+    private function extractText(DOMXPath $xpath, string $query): ?string
+    {
+        $node = $xpath->query($query)->item(0);
+
+        if (! $node) {
+            return null;
+        }
+
+        $text = $this->normaliseText($node->textContent ?? '');
+
+        return $text !== '' ? $text : null;
+    }
+
+    private function normaliseText(string $value): string
+    {
+        return Str::of($value)->replaceMatches('/\s+/', ' ')->trim()->value();
     }
 
     private function fetchProductHtml(string $productUrl): string
@@ -100,22 +139,13 @@ class BookExtractionService
         return '';
     }
 
-    private function formatHtmlForPrompt(string $productHtml): string
+    private function emptyExtraction(): array
     {
-        if ($productHtml === '') {
-            return 'No HTML could be fetched from the product page.';
-        }
-
-        $squishedHtml = Str::of($productHtml)->squish()->value();
-        $limitedHtml = Str::limit($squishedHtml, self::HTML_SNIPPET_LIMIT, '... [truncated]');
-
-        if (Str::length($squishedHtml) > self::HTML_SNIPPET_LIMIT) {
-            return $limitedHtml . sprintf(
-                "\n\nNote: HTML content truncated to the first %d characters to fit the prompt size.",
-                self::HTML_SNIPPET_LIMIT
-            );
-        }
-
-        return $limitedHtml;
+        return [
+            'name' => null,
+            'author' => null,
+            'price' => null,
+            'image' => null,
+        ];
     }
 }

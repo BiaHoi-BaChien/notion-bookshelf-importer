@@ -8,82 +8,51 @@ use Tests\TestCase;
 
 class BookExtractionServiceTest extends TestCase
 {
-    public function test_user_prompt_includes_url_and_html_snippet(): void
+    public function test_extracts_book_fields_from_amazon_html(): void
     {
-        config([
-            'notion.openai_api_key' => 'test-key',
-            'notion.openai_model' => 'gpt-test',
+        $html = <<<'HTML'
+<html>
+    <body>
+        <span id="productTitle">  Example Book Title  </span>
+        <div class="author">
+            <a class="contributorNameID">Author One</a>
+            <a class="contributorNameID">Author Two</a>
+        </div>
+        <div id="kindle-price">
+            <span class="a-offscreen">￥1,234</span>
+        </div>
+        <div id="imgTagWrapperId">
+            <img data-old-hires="https://example.com/large.jpg" src="https://example.com/small.jpg" />
+        </div>
+    </body>
+</html>
+HTML;
+
+        Http::fake([
+            'https://example.com/book' => Http::response($html, 200),
         ]);
 
         $service = new BookExtractionService();
-        $capturedPrompt = null;
+        $extracted = $service->extractFromProductUrl('https://example.com/book');
 
-        Http::fake([
-            'https://example.com/book' => Http::response(str_repeat('ABC', 4000), 200),
-            'https://api.openai.com/*' => function ($request) use (&$capturedPrompt) {
-                $capturedPrompt = data_get($request->data(), 'messages.1.content');
-
-                return Http::response([
-                    'choices' => [
-                        [
-                            'message' => [
-                                'content' => json_encode([
-                                    'name' => 'Example Book',
-                                    'author' => 'Someone',
-                                    'price' => 12.3,
-                                    'image' => 'https://example.com/image.jpg',
-                                ]),
-                            ],
-                        ],
-                    ],
-                ]);
-            },
-        ]);
-
-        $service->extractFromProductUrl('https://example.com/book');
-
-        $this->assertNotNull($capturedPrompt);
-        $this->assertStringContainsString('Book product URL: https://example.com/book', $capturedPrompt);
-        $this->assertStringContainsString('Product page HTML (truncated if long):', $capturedPrompt);
-        $this->assertStringContainsString('ABC', $capturedPrompt);
-        $this->assertStringContainsString('Return a JSON object exactly with keys: name, author, price, image.', $capturedPrompt);
+        $this->assertSame('Example Book Title', $extracted['name']);
+        $this->assertSame('Author One, Author Two', $extracted['author']);
+        $this->assertSame(1234.0, $extracted['price']);
+        $this->assertSame('https://example.com/large.jpg', $extracted['image']);
     }
 
-    public function test_user_prompt_mentions_missing_html_on_fetch_failure(): void
+    public function test_returns_null_fields_when_html_unavailable(): void
     {
-        config([
-            'notion.openai_api_key' => 'test-key',
-            'notion.openai_model' => 'gpt-test',
+        Http::fake([
+            'https://example.com/unreachable' => Http::response('Unavailable', 500),
         ]);
 
         $service = new BookExtractionService();
-        $capturedPrompt = null;
+        $extracted = $service->extractFromProductUrl('https://example.com/unreachable');
 
-        Http::fake([
-            'https://example.com/unreachable' => Http::response('Unavailable', 500),
-            'https://api.openai.com/*' => function ($request) use (&$capturedPrompt) {
-                $capturedPrompt = data_get($request->data(), 'messages.1.content');
-
-                return Http::response([
-                    'choices' => [
-                        [
-                            'message' => [
-                                'content' => json_encode([
-                                    'name' => null,
-                                    'author' => null,
-                                    'price' => null,
-                                    'image' => null,
-                                ]),
-                            ],
-                        ],
-                    ],
-                ]);
-            },
-        ]);
-
-        $service->extractFromProductUrl('https://example.com/unreachable');
-
-        $this->assertNotNull($capturedPrompt);
-        $this->assertStringContainsString('No HTML could be fetched from the product page.', $capturedPrompt);
+        $this->assertNull($extracted['name']);
+        $this->assertNull($extracted['author']);
+        $this->assertNull($extracted['price']);
+        $this->assertNull($extracted['image']);
     }
 }
