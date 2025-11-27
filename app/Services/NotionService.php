@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -28,8 +29,12 @@ class NotionService
             ],
         ];
 
+        $endpoint = $this->endpoint("data_sources/{$dataSourceId}/query");
+
         $response = Http::withHeaders($this->headers())
-            ->post($this->endpoint("data_sources/{$dataSourceId}/query"), $payload);
+            ->post($endpoint, $payload);
+
+        $this->logNotionHttp('POST', $endpoint, $payload, $response);
 
         if ($response->failed()) {
             Log::error('Failed to query Notion data source', [
@@ -55,8 +60,12 @@ class NotionService
             'properties' => $this->buildProperties($properties),
         ];
 
+        $endpoint = $this->endpoint("pages/{$pageId}");
+
         $response = Http::withHeaders($this->headers())
-            ->patch($this->endpoint("pages/{$pageId}"), $payload);
+            ->patch($endpoint, $payload);
+
+        $this->logNotionHttp('PATCH', $endpoint, $payload, $response);
 
         if ($response->failed()) {
             Log::error('Failed to update Notion page', [
@@ -141,5 +150,23 @@ class NotionService
             'Notion-Version' => config('notion.version'),
             'Content-Type' => 'application/json',
         ];
+    }
+
+    private function logNotionHttp(string $method, string $endpoint, array $payload, Response $response): void
+    {
+        if (! config('app.debug')) {
+            return;
+        }
+
+        Log::debug('Notion API request', [
+            'method' => $method,
+            'url' => $endpoint,
+            'payload' => $payload,
+        ]);
+
+        Log::debug('Notion API response', [
+            'status' => $response->status(),
+            'body' => $response->json(),
+        ]);
     }
 }
