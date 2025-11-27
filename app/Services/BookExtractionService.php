@@ -4,6 +4,7 @@ namespace App\Services;
 
 use DOMDocument;
 use DOMXPath;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -178,6 +179,8 @@ class BookExtractionService
             if ($response->successful()) {
                 $html = $response->body() ?? '';
 
+                $this->logFetchSuccess($productUrl, $response, $html);
+
                 if ($html === '') {
                     Log::warning('Amazon product HTML was empty after a successful response', [
                         'product_url' => $productUrl,
@@ -248,6 +251,24 @@ class BookExtractionService
             'author' => $extracted['author'] ?? null,
             'price' => $extracted['price'] ?? null,
             'image' => $extracted['image'] ?? null,
+        ]);
+    }
+
+    private function logFetchSuccess(string $productUrl, Response $response, string $html): void
+    {
+        if (! config('app.debug')) {
+            return;
+        }
+
+        Log::debug('Amazon product HTML fetch succeeded', [
+            'product_url' => $productUrl,
+            'status' => $response->status(),
+            'content_type' => $response->header('Content-Type'),
+            'html_length' => strlen($html),
+            'html_excerpt' => Str::of($html)
+                ->replaceMatches('/\s+/', ' ')
+                ->substr(0, 200)
+                ->value(),
         ]);
     }
 }
