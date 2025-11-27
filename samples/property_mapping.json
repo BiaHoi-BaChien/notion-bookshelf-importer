@@ -1,7 +1,6 @@
 {
   "name": {"name": "タイトル", "type": "title"},
   "author": {"name": "著者", "type": "select"},
-  "date": {"name": "購入日", "type": "date"},
   "price": {"name": "金額", "type": "number"},
   "image": {"name": "イメージ", "type": "image"}
 }
