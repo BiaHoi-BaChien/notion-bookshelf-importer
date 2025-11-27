@@ -20,7 +20,7 @@ Notion から呼び出される Laravel 製の webhook を `routes/api.php` に�
 
 `.env.example` をコピーして `.env` を用意してください。
 
-- `OPENAI_API_KEY` / `OPENAI_MODEL`: OpenAI Chat Completions API への接続設定。
+- `OPENAI_API_KEY` / `OPENAI_MODEL`: OpenAI Chat Completions API への接続設定（デフォルトは `gpt-4o-mini`。アクセス権限がないモデルの場合は別モデルに差し替えてください）。
 - `WEBHOOK_AUTH_KEY`: Notion からのリクエストヘッダーに設定する認証キー。
 - `NOTION_API_KEY`: Notion 公式 API の統合トークン。
 - `NOTION_DATA_SOURCE_ID`: Data Source ID（データベース ID ではなく data source を指定）。
