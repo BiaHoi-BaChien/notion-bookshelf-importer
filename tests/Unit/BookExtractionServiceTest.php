@@ -206,4 +206,36 @@ class BookExtractionServiceTest extends TestCase
             'image' => 'https://example.test/cover.jpg',
         ]));
     }
+
+    public function test_returns_empty_extraction_when_bot_block_html_is_detected(): void
+    {
+        $html = <<<'HTML'
+        <html>
+            <head>
+                <title>Robot Check</title>
+            </head>
+            <body>
+                <form action="/errors/validateCaptcha">
+                    <p>To discuss automated access to Amazon data please contact api-services-support@amazon.com.</p>
+                    <input type="text" name="captcha" />
+                </form>
+            </body>
+        </html>
+        HTML;
+
+        Http::fake([
+            'https://example.test/product-blocked' => Http::response($html, 200),
+        ]);
+
+        $service = new BookExtractionService();
+
+        $extracted = $service->extractFromProductUrl('https://example.test/product-blocked');
+
+        $this->assertSame([
+            'name' => null,
+            'author' => null,
+            'price' => null,
+            'image' => null,
+        ], $extracted);
+    }
 }

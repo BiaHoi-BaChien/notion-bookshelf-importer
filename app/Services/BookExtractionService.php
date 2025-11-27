@@ -340,6 +340,15 @@ class BookExtractionService
 
                 $this->logFetchSuccess($productUrl, $response, $html);
 
+                if ($this->htmlLooksBlocked($html)) {
+                    Log::warning('Amazon product HTML looks like a bot-block page', [
+                        'product_url' => $productUrl,
+                        'status' => $response->status(),
+                    ]);
+
+                    return '';
+                }
+
                 if ($html === '') {
                     Log::warning('Amazon product HTML was empty after a successful response', [
                         'product_url' => $productUrl,
@@ -458,5 +467,13 @@ class BookExtractionService
                 ->substr(0, 200)
                 ->value(),
         ]);
+    }
+
+    private function htmlLooksBlocked(string $html): bool
+    {
+        $normalised = Str::of($html)->lower();
+
+        return $normalised->contains(['robot check', 'captcha', 'automated access'])
+            || $normalised->contains('/errors/validatecaptcha');
     }
 }
