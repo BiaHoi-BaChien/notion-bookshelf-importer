@@ -5,6 +5,7 @@ namespace App\Services;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class BookExtractionService
@@ -17,7 +18,11 @@ class BookExtractionService
             return $this->emptyExtraction();
         }
 
-        return $this->extractFromHtml($productHtml);
+        $extracted = $this->extractFromHtml($productHtml);
+
+        $this->logExtraction($productUrl, $extracted);
+
+        return $extracted;
     }
 
     private function extractFromHtml(string $productHtml): array
@@ -147,5 +152,20 @@ class BookExtractionService
             'price' => null,
             'image' => null,
         ];
+    }
+
+    private function logExtraction(string $productUrl, array $extracted): void
+    {
+        if (! config('app.debug')) {
+            return;
+        }
+
+        Log::debug('Amazon product extraction complete', [
+            'product_url' => $productUrl,
+            'name' => $extracted['name'] ?? null,
+            'author' => $extracted['author'] ?? null,
+            'price' => $extracted['price'] ?? null,
+            'image' => $extracted['image'] ?? null,
+        ]);
     }
 }
