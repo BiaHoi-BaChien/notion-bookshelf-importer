@@ -155,6 +155,69 @@ class NotionWebhookControllerTest extends TestCase
         ], $response->getData(true));
     }
 
+    public function test_handles_automation_payload_using_page_id(): void
+    {
+        config([
+            'notion.webhook_key' => 'secret',
+            'app.debug' => false,
+        ]);
+
+        $bookExtractionService = \Mockery::mock(BookExtractionService::class);
+        $notionService = \Mockery::mock(NotionService::class);
+
+        $bookExtractionService->shouldReceive('extractFromProductUrl')
+            ->once()
+            ->with('https://example.test/book')
+            ->andReturn(['title' => 'Example Book']);
+
+        $bookExtractionService->shouldReceive('extractionIsComplete')
+            ->once()
+            ->with(['title' => 'Example Book'])
+            ->andReturnTrue();
+
+        $notionService->shouldReceive('findPageIdByUniqueId')->never();
+        $notionService->shouldReceive('updatePageProperties')
+            ->once()
+            ->with('123e4567e89b12d3a456426614174000', ['title' => 'Example Book']);
+
+        $controller = new NotionWebhookController($bookExtractionService, $notionService);
+
+        $request = Request::create('/', 'POST', [
+            'source' => [
+                'type' => 'automation',
+            ],
+            'data' => [
+                'object' => 'page',
+                'id' => '123e4567e89b12d3a456426614174000',
+                'properties' => [
+                    'ID' => [
+                        'id' => 'iaMa',
+                        'type' => 'unique_id',
+                        'unique_id' => [
+                            'prefix' => 'BOOK',
+                            'number' => 39,
+                        ],
+                    ],
+                    '商品URL' => [
+                        'id' => '%3B%5DDE',
+                        'type' => 'url',
+                        'url' => 'https://example.test/book',
+                    ],
+                ],
+            ],
+        ]);
+
+        $request->headers->set('X-Webhook-Key', 'secret');
+
+        $response = $controller($request);
+
+        $this->assertSame(SymfonyResponse::HTTP_OK, $response->getStatusCode());
+        $this->assertSame([
+            'status' => 'ok',
+            'data' => ['title' => 'Example Book'],
+        ], $response->getData(true));
+    }
+
     public function test_returns_ng_when_page_id_cannot_be_resolved(): void
     {
         config([
