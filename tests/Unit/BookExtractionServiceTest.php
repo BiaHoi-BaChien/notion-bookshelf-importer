@@ -74,6 +74,35 @@ class BookExtractionServiceTest extends TestCase
         $this->assertSame(814.0, $extracted['price']);
     }
 
+    public function test_extracts_price_from_whole_and_fraction_markup(): void
+    {
+        $html = <<<'HTML'
+        <html>
+            <body>
+                <span id="productTitle">サンプル書籍タイトル</span>
+                <div id="corePriceDisplay_desktop_feature_div">
+                    <span class="a-price aok-align-center">
+                        <span class="a-price-symbol">￥</span>
+                        <span class="a-price-whole">1,980</span>
+                        <span class="a-price-decimal">.</span>
+                        <span class="a-price-fraction">00</span>
+                    </span>
+                </div>
+            </body>
+        </html>
+        HTML;
+
+        Http::fake([
+            'https://example.test/product' => Http::response($html, 200),
+        ]);
+
+        $service = new BookExtractionService();
+
+        $extracted = $service->extractFromProductUrl('https://example.test/product');
+
+        $this->assertSame(1980.0, $extracted['price']);
+    }
+
     public function test_extraction_is_complete_detects_missing_values(): void
     {
         $service = new BookExtractionService();

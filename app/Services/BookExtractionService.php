@@ -89,9 +89,31 @@ class BookExtractionService
         );
 
         if ($priceText === null) {
+            $priceText = $this->extractWholeAndFractionPrice($xpath);
+        }
+
+        if ($priceText === null) {
             return null;
         }
 
+        return $this->parsePriceText($priceText);
+    }
+
+    private function extractWholeAndFractionPrice(DOMXPath $xpath): ?string
+    {
+        $whole = $this->extractText($xpath, '//span[contains(@class,"a-price-whole")]');
+
+        if ($whole === null) {
+            return null;
+        }
+
+        $fraction = $this->extractText($xpath, '//span[contains(@class,"a-price-fraction")]');
+
+        return $fraction !== null ? $whole . '.' . $fraction : $whole;
+    }
+
+    private function parsePriceText(string $priceText): ?float
+    {
         $numeric = preg_replace('/[^\d.,]/', '', $priceText);
 
         if ($numeric === null || $numeric === '') {
