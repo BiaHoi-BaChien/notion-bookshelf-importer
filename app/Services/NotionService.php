@@ -16,7 +16,7 @@ class NotionService
         ];
 
         $response = Http::withHeaders($this->headers())
-            ->patch($this->endpoint("items/{$pageId}"), $payload);
+            ->patch($this->endpoint("pages/{$pageId}"), $payload);
 
         if ($response->failed()) {
             Log::error('Failed to update Notion page', [
@@ -71,10 +71,9 @@ class NotionService
     private function endpoint(string $path): string
     {
         $baseUrl = rtrim((string) config('notion.base_url'), '/');
-        $dataSourceId = (string) config('notion.data_source_id');
 
-        if ($baseUrl === '' || $dataSourceId === '') {
-            throw new InvalidArgumentException('NOTION_BASE_URL and NOTION_DATA_SOURCE_ID must be configured.');
+        if ($baseUrl === '') {
+            throw new InvalidArgumentException('NOTION_BASE_URL must be configured.');
         }
 
         $parsed = parse_url($baseUrl) ?: [];
@@ -92,7 +91,7 @@ class NotionService
             $normalizedBase .= '/' . $pathInBase;
         }
 
-        return $normalizedBase . "/data_sources/{$dataSourceId}/" . ltrim($path, '/');
+        return $normalizedBase . '/' . ltrim($path, '/');
     }
 
     private function headers(): array
