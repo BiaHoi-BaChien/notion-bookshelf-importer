@@ -33,6 +33,11 @@ class NotionWebhookControllerTest extends TestCase
             ->with('https://example.com/product')
             ->andReturn(['title' => 'Example Book']);
 
+        $bookExtractionService->shouldReceive('extractionIsComplete')
+            ->once()
+            ->with(['title' => 'Example Book'])
+            ->andReturnTrue();
+
         $notionService->shouldReceive('findPageIdByUniqueId')->never();
         $notionService->shouldReceive('updatePageProperties')
             ->once()
@@ -70,6 +75,11 @@ class NotionWebhookControllerTest extends TestCase
             ->once()
             ->with('https://example.com/product')
             ->andReturn(['title' => 'Example Book']);
+
+        $bookExtractionService->shouldReceive('extractionIsComplete')
+            ->once()
+            ->with(['title' => 'Example Book'])
+            ->andReturnTrue();
 
         $notionService->shouldReceive('findPageIdByUniqueId')
             ->once()
