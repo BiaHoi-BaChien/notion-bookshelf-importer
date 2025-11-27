@@ -77,7 +77,23 @@ class NotionService
             throw new InvalidArgumentException('NOTION_BASE_URL and NOTION_DATA_SOURCE_ID must be configured.');
         }
 
-        return $baseUrl . "/data_sources/{$dataSourceId}/" . ltrim($path, '/');
+        $parsed = parse_url($baseUrl) ?: [];
+        $scheme = $parsed['scheme'] ?? null;
+        $host = $parsed['host'] ?? null;
+        $port = isset($parsed['port']) ? ":{$parsed['port']}" : '';
+        $pathInBase = trim($parsed['path'] ?? '', '/');
+
+        if ($scheme === null || $host === null) {
+            throw new InvalidArgumentException('NOTION_BASE_URL must include a valid scheme and host.');
+        }
+
+        if ($pathInBase !== '') {
+            throw new InvalidArgumentException('NOTION_BASE_URL must not include any path (e.g., do not append /pages).');
+        }
+
+        $normalizedBase = sprintf('%s://%s%s', $scheme, $host, $port);
+
+        return $normalizedBase . "/data_sources/{$dataSourceId}/" . ltrim($path, '/');
     }
 
     private function headers(): array

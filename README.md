@@ -25,7 +25,7 @@ Notion から呼び出される Laravel 製の webhook を `routes/api.php` に�
 - `NOTION_API_KEY`: Notion 公式 API の統合トークン。
 - `NOTION_DATA_SOURCE_ID`: Data Source ID（データベース ID ではなく data source を指定）。未設定の場合はリクエスト処理前に例外が発生します。
 - `NOTION_VERSION`: API バージョン。仕様通り `2025-09-03` をデフォルトに設定。
-- `NOTION_BASE_URL`: Notion API のベース URL。
+- `NOTION_BASE_URL`: Notion API のベース URL（`https://api.notion.com/v1` のようにパスなしで設定し、`/pages` などのサフィックスは付けない）。
 - `NOTION_PROPERTY_MAPPING`: Webhook で更新するプロパティのマッピング JSON。キー名が抽出結果のキー、`name` が Notion 側のプロパティ名、`type` がプロパティ種別（`title` / `select` / `date` / `number` / `image`）。
 
 ### ローカルテスト用サンプル JSON
