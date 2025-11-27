@@ -65,7 +65,7 @@ class BookExtractionService
         foreach ($nodes as $node) {
             $text = $this->normaliseText($node->textContent ?? '');
 
-            if ($text !== '') {
+            if ($text !== '' && ! $this->textIsFollowLink($text)) {
                 $authors[] = $text;
             }
         }
@@ -73,6 +73,13 @@ class BookExtractionService
         $authors = array_values(array_unique($authors));
 
         return $authors !== [] ? implode(', ', $authors) : null;
+    }
+
+    private function textIsFollowLink(string $text): bool
+    {
+        $normalised = Str::of($text)->replace(',', '')->trim();
+
+        return $normalised->is('フォロー') || $normalised->is('Follow');
     }
 
     private function extractPrice(DOMXPath $xpath): ?float
