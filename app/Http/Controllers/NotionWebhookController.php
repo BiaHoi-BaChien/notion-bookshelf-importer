@@ -46,16 +46,23 @@ class NotionWebhookController extends Controller
         $this->logDebug('Book data extracted', $extracted);
 
         if (! $this->bookExtractionService->extractionIsComplete($extracted)) {
-            Log::warning('Book extraction incomplete', [
-                'page_id' => $pageId,
-                'product_url' => $payload['商品URL'],
-            ]);
+            if ($this->bookExtractionService->extractionHasAllButPrice($extracted)) {
+                Log::warning('Book price could not be extracted; proceeding without price.', [
+                    'page_id' => $pageId,
+                    'product_url' => $payload['商品URL'],
+                ]);
+            } else {
+                Log::warning('Book extraction incomplete', [
+                    'page_id' => $pageId,
+                    'product_url' => $payload['商品URL'],
+                ]);
 
-            return response()->json([
-                'status' => 'ng',
-                'message' => 'Book information could not be fully extracted.',
-                'data' => $extracted,
-            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                return response()->json([
+                    'status' => 'ng',
+                    'message' => 'Book information could not be fully extracted.',
+                    'data' => $extracted,
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
         }
 
         $this->notionService->updatePageProperties(

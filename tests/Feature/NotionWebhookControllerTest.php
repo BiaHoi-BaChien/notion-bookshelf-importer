@@ -28,6 +28,9 @@ class NotionWebhookControllerTest extends TestCase
         $bookExtractionService->shouldReceive('extractionIsComplete')
             ->once()
             ->andReturnFalse();
+        $bookExtractionService->shouldReceive('extractionHasAllButPrice')
+            ->once()
+            ->andReturnFalse();
 
         $notionService = Mockery::mock(NotionService::class);
         $notionService->shouldReceive('findPageIdByUniqueId')->never();
@@ -98,6 +101,9 @@ class NotionWebhookControllerTest extends TestCase
                 'image' => null,
             ])
             ->andReturnFalse();
+        $bookExtractionService->shouldReceive('extractionHasAllButPrice')
+            ->once()
+            ->andReturnFalse();
 
         $notionService = Mockery::mock(NotionService::class);
         $notionService->shouldReceive('findPageIdByUniqueId')->never();
@@ -124,6 +130,80 @@ class NotionWebhookControllerTest extends TestCase
                     'author' => 'Author Name',
                     'price' => 1200,
                     'image' => null,
+                ],
+            ]);
+
+        Log::shouldHaveReceived('warning')
+            ->once();
+    }
+
+    public function test_returns_ok_when_price_is_missing(): void
+    {
+        config(['notion.webhook_key' => 'secret']);
+
+        $bookExtractionService = Mockery::mock(BookExtractionService::class);
+        $bookExtractionService->shouldReceive('extractFromProductUrl')
+            ->once()
+            ->with('https://example.test/book')
+            ->andReturn([
+                'name' => 'Example Book',
+                'author' => 'Author Name',
+                'price' => null,
+                'image' => 'https://example.test/image.jpg',
+            ]);
+        $bookExtractionService->shouldReceive('extractionIsComplete')
+            ->once()
+            ->with([
+                'name' => 'Example Book',
+                'author' => 'Author Name',
+                'price' => null,
+                'image' => 'https://example.test/image.jpg',
+            ])
+            ->andReturnFalse();
+        $bookExtractionService->shouldReceive('extractionHasAllButPrice')
+            ->once()
+            ->with([
+                'name' => 'Example Book',
+                'author' => 'Author Name',
+                'price' => null,
+                'image' => 'https://example.test/image.jpg',
+            ])
+            ->andReturnTrue();
+
+        $notionService = Mockery::mock(NotionService::class);
+        $notionService->shouldReceive('findPageIdByUniqueId')
+            ->once()
+            ->with(39, 'BOOK')
+            ->andReturn('resolved-page-id');
+        $notionService->shouldReceive('updatePageProperties')
+            ->once()
+            ->with('resolved-page-id', [
+                'name' => 'Example Book',
+                'author' => 'Author Name',
+                'price' => null,
+                'image' => 'https://example.test/image.jpg',
+            ]);
+
+        $this->app->instance(BookExtractionService::class, $bookExtractionService);
+        $this->app->instance(NotionService::class, $notionService);
+
+        Log::spy();
+
+        $response = $this->postJson(route('webhook.notion.books'), [
+            'ID' => 'BOOK-39',
+            '商品URL' => 'https://example.test/book',
+        ], [
+            'X-Webhook-Key' => 'secret',
+        ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'status' => 'ok',
+                'data' => [
+                    'name' => 'Example Book',
+                    'author' => 'Author Name',
+                    'price' => null,
+                    'image' => 'https://example.test/image.jpg',
                 ],
             ]);
 
