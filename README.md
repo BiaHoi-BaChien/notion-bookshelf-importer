@@ -1,6 +1,6 @@
 # notion-bookshelf-importer
 
-Kindle 商品ページの URL を基に OpenAI API を用いてタイトル・価格・著者情報などを抽出し、Notion の本棚データベースへ登録するバックエンドアプリ。
+Kindle 商品ページの URL を基にタイトル・価格・著者情報などを抽出し、Notion の本棚データベースへ登録するバックエンドアプリ。
 
 ## Webhook 仕様
 
@@ -22,7 +22,6 @@ Notion から呼び出される Laravel 製の webhook を `routes/api.php` に�
 
 `.env.example` をコピーして `.env` を用意してください。
 
-- `OPENAI_API_KEY` / `OPENAI_MODEL`: OpenAI Chat Completions API への接続設定（デフォルトは `gpt-4o-mini`。アクセス権限がないモデルの場合は別モデルに差し替えてください）。
 - `WEBHOOK_AUTH_KEY`: Notion からのリクエストヘッダーに設定する認証キー。
 - `NOTION_API_KEY`: Notion 公式 API の統合トークン。
 - `NOTION_DATA_SOURCE_ID`: Data Source ID（データベース ID ではなく data source を指定）。Unique ID プロパティから page_id を引くために Query する際に利用します。必須です。
@@ -35,13 +34,13 @@ Notion から呼び出される Laravel 製の webhook を `routes/api.php` に�
 リポジトリ直下の `samples/` にローカルでの動作確認に使えるサンプル JSON を用意しています。
 
 - `webhook_request.json`: `POST /api/webhook/notion/books` に送信する想定のリクエストボディ。
-- `extraction_response.json`: OpenAI からの抽出結果サンプル（`name` / `author` / `price` / `image`）。
+- `extraction_response.json`: Amazon 商品ページから抽出した結果サンプル（`name` / `author` / `price` / `image`）。
 - `property_mapping.json`: `.env` の `NOTION_PROPERTY_MAPPING` に設定できるサンプルマッピング。
 
 ## 処理フロー
 
 1. `NotionWebhookController` でヘッダー認証とバリデーションを実施。
-2. `BookExtractionService` が OpenAI API に対し `response_format: json_object` を指定して書誌情報を抽出。返却キーは `name` / `author` / `price` / `image` に固定。
+2. `BookExtractionService` が Amazon 商品ページの HTML をパースして書誌情報を抽出。返却キーは `name` / `author` / `price` / `image` に固定。
 3. `NotionService` が `NOTION_PROPERTY_MAPPING` を基にプロパティ payload を構築し、`PATCH /pages/{page_id}` で Notion に反映。
 
 ### Notion ページの更新フロー（2025-09-03 版）
@@ -62,4 +61,4 @@ Notion のレコード更新は page_id に対してのみ行われます。Uniq
 ## エラーハンドリング
 
 - 認証エラーは 401 を返します。
-- OpenAI/Notion へのリクエストが失敗した場合は例外を投げ、Laravel の例外ハンドラ経由でエラー応答します。ログにもレスポンス body を出力します。
+- Notion へのリクエストが失敗した場合は例外を投げ、Laravel の例外ハンドラ経由でエラー応答します。ログにもレスポンス body を出力します。

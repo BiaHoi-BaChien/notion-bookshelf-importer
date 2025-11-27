@@ -1,6 +1,6 @@
 {
     "name": "notion-bookshelf-importer/notion-bookshelf-importer",
-    "description": "Laravel webhook backend that extracts book metadata with OpenAI and updates Notion.",
+    "description": "Laravel webhook backend that extracts book metadata from Amazon product pages and updates Notion.",
     "type": "project",
     "license": "MIT",
     "require": {
