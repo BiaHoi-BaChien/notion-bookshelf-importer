@@ -30,7 +30,7 @@ class BookExtractionService
         libxml_use_internal_errors(true);
 
         $dom = new DOMDocument();
-        $dom->loadHTML($productHtml);
+        $dom->loadHTML('<?xml encoding="UTF-8">' . $productHtml);
         $xpath = new DOMXPath($dom);
 
         $name = $this->extractText($xpath, '//*[@id="productTitle"] | //*[@id="ebooksProductTitle"]');
