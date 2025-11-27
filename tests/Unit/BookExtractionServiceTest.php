@@ -74,6 +74,37 @@ class BookExtractionServiceTest extends TestCase
         $this->assertSame(814.0, $extracted['price']);
     }
 
+    public function test_ignores_follow_link_text_when_extracting_authors(): void
+    {
+        $html = <<<'HTML'
+        <html>
+            <body>
+                <span id="productTitle">サンプル書籍タイトル</span>
+                <div id="bylineInfo">
+                    <span class="author notFaded"><a class="a-link-normal">今村翔吾</a></span>
+                    <span class="author notFaded"><a class="a-link-normal">フォロー</a></span>
+                </div>
+                <div id="priceInsideBuyBox_feature_div">
+                    <span class="a-offscreen">￥1,234</span>
+                </div>
+                <div id="imgTagWrapperId">
+                    <img data-old-hires="https://example.test/cover.jpg" />
+                </div>
+            </body>
+        </html>
+        HTML;
+
+        Http::fake([
+            'https://example.test/product' => Http::response($html, 200),
+        ]);
+
+        $service = new BookExtractionService();
+
+        $extracted = $service->extractFromProductUrl('https://example.test/product');
+
+        $this->assertSame('今村翔吾', $extracted['author']);
+    }
+
     public function test_extracts_price_from_whole_and_fraction_markup(): void
     {
         $html = <<<'HTML'
