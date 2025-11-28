@@ -196,8 +196,10 @@ class NotionWebhookControllerTest extends TestCase
         $notionService = \Mockery::mock(NotionService::class);
 
         $extracted = [
-            'title' => 'Example Book',
+            'name' => 'Example Book',
+            'author' => 'Author Name',
             'price' => null,
+            'image' => 'https://example.com/image.jpg',
         ];
 
         $bookExtractionService->shouldReceive('extractFromProductUrl')->never();
@@ -283,6 +285,69 @@ class NotionWebhookControllerTest extends TestCase
                 'author' => 'Author Name',
                 'kindle_price' => '814円（税込）',
                 'image_url' => 'https://example.com/image.jpg',
+            ],
+        ]);
+
+        $request->headers->set('X-Webhook-Key', 'secret');
+
+        $response = $controller($request);
+
+        $this->assertSame(SymfonyResponse::HTTP_OK, $response->getStatusCode());
+        $this->assertSame([
+            'status' => 'ok',
+            'data' => $extracted,
+        ], $response->getData(true));
+    }
+
+    public function test_handles_rich_text_payload_from_automation(): void
+    {
+        config([
+            'notion.webhook_key' => 'secret',
+            'app.debug' => false,
+        ]);
+
+        $bookExtractionService = \Mockery::mock(BookExtractionService::class);
+        $notionService = \Mockery::mock(NotionService::class);
+
+        $extracted = [
+            'name' => 'Example Book',
+            'author' => 'Author Name',
+            'price' => 814.0,
+            'image' => 'https://example.com/image.jpg',
+        ];
+
+        $bookExtractionService->shouldReceive('extractFromProductUrl')->never();
+        $bookExtractionService->shouldReceive('extractionIsComplete')
+            ->once()
+            ->with($extracted)
+            ->andReturnTrue();
+        $bookExtractionService->shouldReceive('extractionHasAllButPrice')->never();
+
+        $notionService->shouldReceive('findPageIdByUniqueId')->never();
+        $notionService->shouldReceive('updatePageProperties')
+            ->once()
+            ->with('123e4567e89b12d3a456426614174000', $extracted);
+
+        $controller = new NotionWebhookController($bookExtractionService, $notionService);
+
+        $informationJson = json_encode([
+            'title' => 'Example Book',
+            'author' => 'Author Name',
+            'kindle_price' => '814円（税込）',
+            'image_url' => 'https://example.com/image.jpg',
+        ], JSON_UNESCAPED_UNICODE);
+
+        $request = Request::create('/', 'POST', [
+            'data' => [
+                'id' => '123e4567e89b12d3a456426614174000',
+                'properties' => [
+                    '情報' => [
+                        'rich_text' => [
+                            ['plain_text' => '{'],
+                            ['plain_text' => substr($informationJson, 1)],
+                        ],
+                    ],
+                ],
             ],
         ]);
 

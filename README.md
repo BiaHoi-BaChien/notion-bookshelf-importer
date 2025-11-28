@@ -1,14 +1,13 @@
 # notion-bookshelf-importer
 
-Kindle 商品ページの URL を基にタイトル・価格・著者情報などを抽出し、Notion の本棚データベースへ登録するバックエンドアプリ。
+Notion Automations から渡される JSON 情報を基にタイトル・価格・著者情報などを抽出し、Notion の本棚データベースへ登録するバックエンドアプリ。
 
 ## Webhook 仕様
 
 Notion から呼び出される Laravel 製の webhook を `routes/api.php` に定義しています。`POST /api/webhook/notion/books` に対して以下の形式でリクエストしてください。
 
 - ヘッダー: `X-Webhook-Key` に `.env` の `WEBHOOK_AUTH_KEY` と同じ値を設定（時刻署名不要、`hash_equals` で比較）。
-- ボディ: Notion Automations から届く page オブジェクトのペイロードをそのまま送ってください。`data.id` から page_id を、`data.properties.商品URL.url` から商品 URL を
-  抜き出して処理します。
+- ボディ: Notion Automations から届く page オブジェクトのペイロードをそのまま送ってください。`data.id` から page_id を、`data.properties.情報.rich_text` に含まれる JSON 文字列から書誌情報を取り出して処理します。
 
 ```json
 {
@@ -26,16 +25,27 @@ Notion から呼び出される Laravel 製の webhook を `routes/api.php` に�
           "number": 408
         }
       },
-      "商品URL": {
-        "type": "url",
-        "url": "https://www.amazon.co.jp/dp/..."
+      "情報": {
+        "type": "rich_text",
+        "rich_text": [
+          {
+            "type": "text",
+            "text": {
+              "content": "{
+"title": "Example Book",
+"author": "Author Name",
+"kindle_price": "1200円",
+"image_url": "https://example.com/image.jpg"
+}"
+            }
+          }
+        ]
       }
     }
   }
 }
 ```
 
-（従来のローカルテスト用に、`{ "ID": "BOOK-39", "商品URL": "https://..." }` というシンプルな形式も引き続き受け付けます。）
 リクエストで受け取った `ID` が数値の場合は Unique ID とみなし、`data_sources/{NOTION_DATA_SOURCE_ID}/query` を呼び出して検索結果の page_id を使って更新します。`NOTION_DATA_SOURCE_ID` が未設定、あるいは該当レコードが見つからない場合は 4xx を返します。数値以外の値が渡された場合はそれを page_id として直接更新します。
 
 ## 環境変数
@@ -70,7 +80,7 @@ Notion から呼び出される Laravel 製の webhook を `routes/api.php` に�
 ## 処理フロー
 
 1. `NotionWebhookController` でヘッダー認証とバリデーションを実施。
-2. `BookExtractionService` が Amazon 商品ページの HTML をパースして書誌情報を抽出。返却キーは `name` / `author` / `price` / `image` に固定。
+2. Notion 側の「情報」プロパティに含まれる JSON 文字列からタイトル・著者・金額・画像 URL を抽出。返却キーは `name` / `author` / `price` / `image` に固定。
 3. `NotionService` が `NOTION_PROPERTY_MAPPING` を基にプロパティ payload を構築し、`PATCH /pages/{page_id}` で Notion に反映。
 
 ### Notion ページの更新フロー（2025-09-03 版）
