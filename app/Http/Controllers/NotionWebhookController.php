@@ -81,7 +81,7 @@ class NotionWebhookController extends Controller
         return response()->json([
             'status' => 'ok',
             'data' => $extracted,
-        ]);
+        ], Response::HTTP_OK, [], JSON_PRESERVE_ZERO_FRACTION);
     }
 
     private function assertAuthorized(Request $request): void
@@ -229,10 +229,19 @@ class NotionWebhookController extends Controller
 
     private function extractFromInformation(array $information): array
     {
+        $price = $this->parsePriceText(Arr::get($information, 'kindle_price'));
+
+        if ($price === null) {
+            return [
+                'title' => Arr::get($information, 'title'),
+                'price' => null,
+            ];
+        }
+
         return [
             'name' => Arr::get($information, 'title'),
             'author' => Arr::get($information, 'author'),
-            'price' => $this->parsePriceText(Arr::get($information, 'kindle_price')),
+            'price' => $price,
             'image' => Arr::get($information, 'image_url'),
         ];
     }
