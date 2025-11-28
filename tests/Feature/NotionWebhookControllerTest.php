@@ -16,17 +16,15 @@ class NotionWebhookControllerTest extends TestCase
         config(['notion.webhook_key' => 'secret']);
 
         $bookExtractionService = Mockery::mock(BookExtractionService::class);
-        $bookExtractionService->shouldReceive('extractFromProductUrl')
+        $bookExtractionService->shouldReceive('extractFromProductUrl')->never();
+        $bookExtractionService->shouldReceive('extractionIsComplete')
             ->once()
-            ->with('https://example.test/book')
-            ->andReturn([
+            ->with([
                 'name' => null,
                 'author' => null,
                 'price' => null,
                 'image' => null,
-            ]);
-        $bookExtractionService->shouldReceive('extractionIsComplete')
-            ->once()
+            ])
             ->andReturnFalse();
         $bookExtractionService->shouldReceive('extractionHasAllButPrice')
             ->once()
@@ -42,27 +40,12 @@ class NotionWebhookControllerTest extends TestCase
         Log::spy();
 
         $response = $this->postJson(route('webhook.notion.books'), [
-            'source' => [
-                'type' => 'automation',
-            ],
-            'data' => [
-                'object' => 'page',
-                'id' => '123e4567e89b12d3a456426614174000',
-                'properties' => [
-                    'ID' => [
-                        'id' => 'iaMa',
-                        'type' => 'unique_id',
-                        'unique_id' => [
-                            'prefix' => 'BOOK',
-                            'number' => 39,
-                        ],
-                    ],
-                    '商品URL' => [
-                        'id' => '%3B%5DDE',
-                        'type' => 'url',
-                        'url' => 'https://example.test/book',
-                    ],
-                ],
+            'ID' => 'BOOK-39',
+            '情報' => [
+                'title' => null,
+                'author' => null,
+                'kindle_price' => null,
+                'image_url' => null,
             ],
         ], [
             'X-Webhook-Key' => 'secret',
@@ -83,15 +66,7 @@ class NotionWebhookControllerTest extends TestCase
         config(['notion.webhook_key' => 'secret']);
 
         $bookExtractionService = Mockery::mock(BookExtractionService::class);
-        $bookExtractionService->shouldReceive('extractFromProductUrl')
-            ->once()
-            ->with('https://example.test/book')
-            ->andReturn([
-                'name' => 'Example Book',
-                'author' => 'Author Name',
-                'price' => 1200,
-                'image' => null,
-            ]);
+        $bookExtractionService->shouldReceive('extractFromProductUrl')->never();
         $bookExtractionService->shouldReceive('extractionIsComplete')
             ->once()
             ->with([
@@ -116,7 +91,12 @@ class NotionWebhookControllerTest extends TestCase
 
         $response = $this->postJson(route('webhook.notion.books'), [
             'ID' => '0f9d48b3a5e24f8b9d2c4d1b2e3f4567',
-            '商品URL' => 'https://example.test/book',
+            '情報' => [
+                'title' => 'Example Book',
+                'author' => 'Author Name',
+                'kindle_price' => '1200',
+                'image_url' => null,
+            ],
         ], [
             'X-Webhook-Key' => 'secret',
         ]);
@@ -142,15 +122,7 @@ class NotionWebhookControllerTest extends TestCase
         config(['notion.webhook_key' => 'secret']);
 
         $bookExtractionService = Mockery::mock(BookExtractionService::class);
-        $bookExtractionService->shouldReceive('extractFromProductUrl')
-            ->once()
-            ->with('https://example.test/book')
-            ->andReturn([
-                'name' => 'Example Book',
-                'author' => 'Author Name',
-                'price' => null,
-                'image' => 'https://example.test/image.jpg',
-            ]);
+        $bookExtractionService->shouldReceive('extractFromProductUrl')->never();
         $bookExtractionService->shouldReceive('extractionIsComplete')
             ->once()
             ->with([
@@ -191,7 +163,12 @@ class NotionWebhookControllerTest extends TestCase
 
         $response = $this->postJson(route('webhook.notion.books'), [
             'ID' => 'BOOK-39',
-            '商品URL' => 'https://example.test/book',
+            '情報' => [
+                'title' => 'Example Book',
+                'author' => 'Author Name',
+                'kindle_price' => null,
+                'image_url' => 'https://example.test/image.jpg',
+            ],
         ], [
             'X-Webhook-Key' => 'secret',
         ]);
