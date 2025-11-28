@@ -43,10 +43,12 @@ class NotionWebhookController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $productUrl = $payload['商品URL'] ?? null;
+
         if (array_key_exists('情報', $payload)) {
             $extracted = $this->extractFromInformation($payload['情報']);
         } else {
-            $extracted = $this->bookExtractionService->extractFromProductUrl($payload['商品URL']);
+            $extracted = $this->bookExtractionService->extractFromProductUrl($productUrl);
         }
 
         $this->logDebug('Book data extracted', $extracted);
@@ -55,12 +57,12 @@ class NotionWebhookController extends Controller
             if ($this->bookExtractionService->extractionHasAllButPrice($extracted)) {
                 Log::warning('Book price could not be extracted; proceeding without price.', [
                     'page_id' => $pageId,
-                    'product_url' => $payload['商品URL'],
+                    'product_url' => $productUrl,
                 ]);
             } else {
                 Log::warning('Book extraction incomplete', [
                     'page_id' => $pageId,
-                    'product_url' => $payload['商品URL'],
+                    'product_url' => $productUrl,
                 ]);
 
                 return response()->json([
