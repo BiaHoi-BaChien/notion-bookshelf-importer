@@ -13,9 +13,16 @@
           "number": 408
         }
       },
-      "商品URL": {
-        "type": "url",
-        "url": "https://www.amazon.co.jp/dp/410101013X"
+      "情報": {
+        "type": "rich_text",
+        "rich_text": [
+          {
+            "type": "text",
+            "text": {
+              "content": "{\n\"title\": \"Example Book\",\n\"author\": \"Author Name\",\n\"kindle_price\": \"1200円\",\n\"image_url\": \"https://example.com/image.jpg\"\n}"
+            }
+          }
+        ]
       }
     }
   }

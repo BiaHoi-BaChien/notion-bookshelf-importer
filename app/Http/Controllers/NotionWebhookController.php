@@ -43,13 +43,7 @@ class NotionWebhookController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $productUrl = $payload['商品URL'] ?? null;
-
-        if (array_key_exists('情報', $payload)) {
-            $extracted = $this->extractFromInformation($payload['情報']);
-        } else {
-            $extracted = $this->bookExtractionService->extractFromProductUrl($productUrl);
-        }
+        $extracted = $this->extractFromInformation($payload['情報']);
 
         $this->logDebug('Book data extracted', $extracted);
 
@@ -57,12 +51,10 @@ class NotionWebhookController extends Controller
             if ($this->bookExtractionService->extractionHasAllButPrice($extracted)) {
                 Log::warning('Book price could not be extracted; proceeding without price.', [
                     'page_id' => $pageId,
-                    'product_url' => $productUrl,
                 ]);
             } else {
                 Log::warning('Book extraction incomplete', [
                     'page_id' => $pageId,
-                    'product_url' => $productUrl,
                 ]);
 
                 return response()->json([
@@ -101,43 +93,34 @@ class NotionWebhookController extends Controller
 
     private function normalizePayload(Request $request): array
     {
-        if ($request->has('情報')) {
-            $request->validate([
-                'ID' => ['required', 'string'],
-                '情報' => ['required'],
-            ]);
-
-            return [
-                'ID' => $request->input('ID'),
-                '情報' => $this->validateInformationPayload($request->input('情報')),
-            ];
-        }
-
-        if ($request->has(['ID', '商品URL'])) {
-            return $request->validate([
-                'ID' => ['required', 'string'],
-                '商品URL' => ['required', 'url'],
-            ]);
-        }
-
         if ($request->has('data')) {
             $request->validate([
                 'data' => ['required', 'array'],
                 'data.id' => ['required', 'string'],
                 'data.properties' => ['required', 'array'],
-                'data.properties.商品URL.url' => ['required', 'url'],
+                'data.properties.情報' => ['required', 'array'],
+                'data.properties.情報.rich_text' => ['required', 'array'],
             ]);
+
+            $information = $this->extractInformationFromRichText(
+                $request->input('data.properties.情報.rich_text')
+            );
 
             return [
                 'ID' => $request->input('data.id'),
-                '商品URL' => $request->input('data.properties.商品URL.url'),
+                '情報' => $this->validateInformationPayload($information),
             ];
         }
 
-        return $request->validate([
+        $request->validate([
             'ID' => ['required', 'string'],
-            '商品URL' => ['required', 'url'],
+            '情報' => ['required'],
         ]);
+
+        return [
+            'ID' => $request->input('ID'),
+            '情報' => $this->validateInformationPayload($request->input('情報')),
+        ];
     }
 
     private function validateInformationPayload(mixed $information): array
@@ -171,6 +154,15 @@ class NotionWebhookController extends Controller
         ]);
 
         return $validator->validate()['情報'];
+    }
+
+    private function extractInformationFromRichText(array $richText): string
+    {
+        $content = collect($richText)
+            ->map(fn ($entry) => $entry['plain_text'] ?? ($entry['text']['content'] ?? ''))
+            ->join('');
+
+        return $content;
     }
 
     private function resolvePageId(string $providedId): ?string
@@ -232,13 +224,6 @@ class NotionWebhookController extends Controller
     private function extractFromInformation(array $information): array
     {
         $price = $this->parsePriceText(Arr::get($information, 'kindle_price'));
-
-        if ($price === null) {
-            return [
-                'title' => Arr::get($information, 'title'),
-                'price' => null,
-            ];
-        }
 
         return [
             'name' => Arr::get($information, 'title'),
