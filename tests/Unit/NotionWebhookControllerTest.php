@@ -28,27 +28,36 @@ class NotionWebhookControllerTest extends TestCase
         $bookExtractionService = \Mockery::mock(BookExtractionService::class);
         $notionService = \Mockery::mock(NotionService::class);
 
-        $bookExtractionService->shouldReceive('extractFromProductUrl')
-            ->once()
-            ->with('https://example.com/product')
-            ->andReturn(['title' => 'Example Book']);
+        $bookExtractionService->shouldReceive('extractFromProductUrl')->never();
+
+        $extracted = [
+            'name' => 'Example Book',
+            'author' => 'Author Name',
+            'price' => 814.0,
+            'image' => 'https://example.com/image.jpg',
+        ];
 
         $bookExtractionService->shouldReceive('extractionIsComplete')
             ->once()
-            ->with(['title' => 'Example Book'])
+            ->with($extracted)
             ->andReturnTrue();
         $bookExtractionService->shouldReceive('extractionHasAllButPrice')->never();
 
         $notionService->shouldReceive('findPageIdByUniqueId')->never();
         $notionService->shouldReceive('updatePageProperties')
             ->once()
-            ->with('123e4567-e89b-12d3-a456-426614174000', ['title' => 'Example Book']);
+            ->with('123e4567-e89b-12d3-a456-426614174000', $extracted);
 
         $controller = new NotionWebhookController($bookExtractionService, $notionService);
 
         $request = Request::create('/', 'POST', [
             'ID' => '123e4567-e89b-12d3-a456-426614174000',
-            '商品URL' => 'https://example.com/product',
+            '情報' => [
+                'title' => 'Example Book',
+                'author' => 'Author Name',
+                'kindle_price' => '814円（税込）',
+                'image_url' => 'https://example.com/image.jpg',
+            ],
         ]);
 
         $request->headers->set('X-Webhook-Key', 'secret');
@@ -58,7 +67,7 @@ class NotionWebhookControllerTest extends TestCase
         $this->assertSame(SymfonyResponse::HTTP_OK, $response->getStatusCode());
         $this->assertSame([
             'status' => 'ok',
-            'data' => ['title' => 'Example Book'],
+            'data' => $extracted,
         ], $response->getData(true));
     }
 
@@ -72,14 +81,18 @@ class NotionWebhookControllerTest extends TestCase
         $bookExtractionService = \Mockery::mock(BookExtractionService::class);
         $notionService = \Mockery::mock(NotionService::class);
 
-        $bookExtractionService->shouldReceive('extractFromProductUrl')
-            ->once()
-            ->with('https://example.com/product')
-            ->andReturn(['title' => 'Example Book']);
+        $bookExtractionService->shouldReceive('extractFromProductUrl')->never();
+
+        $extracted = [
+            'name' => 'Example Book',
+            'author' => 'Author Name',
+            'price' => 814.0,
+            'image' => 'https://example.com/image.jpg',
+        ];
 
         $bookExtractionService->shouldReceive('extractionIsComplete')
             ->once()
-            ->with(['title' => 'Example Book'])
+            ->with($extracted)
             ->andReturnTrue();
         $bookExtractionService->shouldReceive('extractionHasAllButPrice')->never();
 
@@ -90,13 +103,18 @@ class NotionWebhookControllerTest extends TestCase
 
         $notionService->shouldReceive('updatePageProperties')
             ->once()
-            ->with('resolved-page-id', ['title' => 'Example Book']);
+            ->with('resolved-page-id', $extracted);
 
         $controller = new NotionWebhookController($bookExtractionService, $notionService);
 
         $request = Request::create('/', 'POST', [
             'ID' => '39',
-            '商品URL' => 'https://example.com/product',
+            '情報' => [
+                'title' => 'Example Book',
+                'author' => 'Author Name',
+                'kindle_price' => '814円（税込）',
+                'image_url' => 'https://example.com/image.jpg',
+            ],
         ]);
 
         $request->headers->set('X-Webhook-Key', 'secret');
@@ -106,7 +124,7 @@ class NotionWebhookControllerTest extends TestCase
         $this->assertSame(SymfonyResponse::HTTP_OK, $response->getStatusCode());
         $this->assertSame([
             'status' => 'ok',
-            'data' => ['title' => 'Example Book'],
+            'data' => $extracted,
         ], $response->getData(true));
     }
 
@@ -120,14 +138,18 @@ class NotionWebhookControllerTest extends TestCase
         $bookExtractionService = \Mockery::mock(BookExtractionService::class);
         $notionService = \Mockery::mock(NotionService::class);
 
-        $bookExtractionService->shouldReceive('extractFromProductUrl')
-            ->once()
-            ->with('https://example.com/product')
-            ->andReturn(['title' => 'Example Book']);
+        $bookExtractionService->shouldReceive('extractFromProductUrl')->never();
+
+        $extracted = [
+            'name' => 'Example Book',
+            'author' => 'Author Name',
+            'price' => 814.0,
+            'image' => 'https://example.com/image.jpg',
+        ];
 
         $bookExtractionService->shouldReceive('extractionIsComplete')
             ->once()
-            ->with(['title' => 'Example Book'])
+            ->with($extracted)
             ->andReturnTrue();
         $bookExtractionService->shouldReceive('extractionHasAllButPrice')->never();
 
@@ -138,13 +160,18 @@ class NotionWebhookControllerTest extends TestCase
 
         $notionService->shouldReceive('updatePageProperties')
             ->once()
-            ->with('resolved-page-id', ['title' => 'Example Book']);
+            ->with('resolved-page-id', $extracted);
 
         $controller = new NotionWebhookController($bookExtractionService, $notionService);
 
         $request = Request::create('/', 'POST', [
             'ID' => 'BOOK-39',
-            '商品URL' => 'https://example.com/product',
+            '情報' => [
+                'title' => 'Example Book',
+                'author' => 'Author Name',
+                'kindle_price' => '814円（税込）',
+                'image_url' => 'https://example.com/image.jpg',
+            ],
         ]);
 
         $request->headers->set('X-Webhook-Key', 'secret');
@@ -154,7 +181,7 @@ class NotionWebhookControllerTest extends TestCase
         $this->assertSame(SymfonyResponse::HTTP_OK, $response->getStatusCode());
         $this->assertSame([
             'status' => 'ok',
-            'data' => ['title' => 'Example Book'],
+            'data' => $extracted,
         ], $response->getData(true));
     }
 
@@ -173,10 +200,7 @@ class NotionWebhookControllerTest extends TestCase
             'price' => null,
         ];
 
-        $bookExtractionService->shouldReceive('extractFromProductUrl')
-            ->once()
-            ->with('https://example.com/product')
-            ->andReturn($extracted);
+        $bookExtractionService->shouldReceive('extractFromProductUrl')->never();
 
         $bookExtractionService->shouldReceive('extractionIsComplete')
             ->once()
@@ -201,7 +225,12 @@ class NotionWebhookControllerTest extends TestCase
 
         $request = Request::create('/', 'POST', [
             'ID' => 'BOOK-39',
-            '商品URL' => 'https://example.com/product',
+            '情報' => [
+                'title' => 'Example Book',
+                'author' => 'Author Name',
+                'kindle_price' => null,
+                'image_url' => 'https://example.com/image.jpg',
+            ],
         ]);
 
         $request->headers->set('X-Webhook-Key', 'secret');
@@ -225,46 +254,35 @@ class NotionWebhookControllerTest extends TestCase
         $bookExtractionService = \Mockery::mock(BookExtractionService::class);
         $notionService = \Mockery::mock(NotionService::class);
 
-        $bookExtractionService->shouldReceive('extractFromProductUrl')
-            ->once()
-            ->with('https://example.test/book')
-            ->andReturn(['title' => 'Example Book']);
+        $bookExtractionService->shouldReceive('extractFromProductUrl')->never();
+
+        $extracted = [
+            'name' => 'Example Book',
+            'author' => 'Author Name',
+            'price' => 814.0,
+            'image' => 'https://example.com/image.jpg',
+        ];
 
         $bookExtractionService->shouldReceive('extractionIsComplete')
             ->once()
-            ->with(['title' => 'Example Book'])
+            ->with($extracted)
             ->andReturnTrue();
         $bookExtractionService->shouldReceive('extractionHasAllButPrice')->never();
 
         $notionService->shouldReceive('findPageIdByUniqueId')->never();
         $notionService->shouldReceive('updatePageProperties')
             ->once()
-            ->with('123e4567e89b12d3a456426614174000', ['title' => 'Example Book']);
+            ->with('123e4567e89b12d3a456426614174000', $extracted);
 
         $controller = new NotionWebhookController($bookExtractionService, $notionService);
 
         $request = Request::create('/', 'POST', [
-            'source' => [
-                'type' => 'automation',
-            ],
-            'data' => [
-                'object' => 'page',
-                'id' => '123e4567e89b12d3a456426614174000',
-                'properties' => [
-                    'ID' => [
-                        'id' => 'iaMa',
-                        'type' => 'unique_id',
-                        'unique_id' => [
-                            'prefix' => 'BOOK',
-                            'number' => 39,
-                        ],
-                    ],
-                    '商品URL' => [
-                        'id' => '%3B%5DDE',
-                        'type' => 'url',
-                        'url' => 'https://example.test/book',
-                    ],
-                ],
+            'ID' => '123e4567e89b12d3a456426614174000',
+            '情報' => [
+                'title' => 'Example Book',
+                'author' => 'Author Name',
+                'kindle_price' => '814円（税込）',
+                'image_url' => 'https://example.com/image.jpg',
             ],
         ]);
 
@@ -275,7 +293,7 @@ class NotionWebhookControllerTest extends TestCase
         $this->assertSame(SymfonyResponse::HTTP_OK, $response->getStatusCode());
         $this->assertSame([
             'status' => 'ok',
-            'data' => ['title' => 'Example Book'],
+            'data' => $extracted,
         ], $response->getData(true));
     }
 
@@ -300,7 +318,12 @@ class NotionWebhookControllerTest extends TestCase
 
         $request = Request::create('/', 'POST', [
             'ID' => 'BOOK-39',
-            '商品URL' => 'https://example.com/product',
+            '情報' => [
+                'title' => 'Example Book',
+                'author' => 'Author Name',
+                'kindle_price' => '1000円',
+                'image_url' => 'https://example.com/image.jpg',
+            ],
         ]);
 
         $request->headers->set('X-Webhook-Key', 'secret');

@@ -8,6 +8,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
 class NotionWebhookController extends Controller
@@ -41,7 +43,11 @@ class NotionWebhookController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $extracted = $this->bookExtractionService->extractFromProductUrl($payload['商品URL']);
+        if (array_key_exists('情報', $payload)) {
+            $extracted = $this->extractFromInformation($payload['情報']);
+        } else {
+            $extracted = $this->bookExtractionService->extractFromProductUrl($payload['商品URL']);
+        }
 
         $this->logDebug('Book data extracted', $extracted);
 
@@ -93,6 +99,18 @@ class NotionWebhookController extends Controller
 
     private function normalizePayload(Request $request): array
     {
+        if ($request->has('情報')) {
+            $request->validate([
+                'ID' => ['required', 'string'],
+                '情報' => ['required'],
+            ]);
+
+            return [
+                'ID' => $request->input('ID'),
+                '情報' => $this->validateInformationPayload($request->input('情報')),
+            ];
+        }
+
         if ($request->has(['ID', '商品URL'])) {
             return $request->validate([
                 'ID' => ['required', 'string'],
@@ -118,6 +136,39 @@ class NotionWebhookController extends Controller
             'ID' => ['required', 'string'],
             '商品URL' => ['required', 'url'],
         ]);
+    }
+
+    private function validateInformationPayload(mixed $information): array
+    {
+        if (is_string($information)) {
+            $decoded = json_decode($information, true);
+
+            if (! is_array($decoded)) {
+                throw ValidationException::withMessages([
+                    '情報' => '情報は有効なJSON形式で提供してください。',
+                ]);
+            }
+
+            $information = $decoded;
+        }
+
+        if (! is_array($information)) {
+            throw ValidationException::withMessages([
+                '情報' => '情報は配列で提供してください。',
+            ]);
+        }
+
+        $validator = validator([
+            '情報' => $information,
+        ], [
+            '情報' => ['required', 'array'],
+            '情報.title' => ['nullable', 'string'],
+            '情報.author' => ['nullable', 'string'],
+            '情報.kindle_price' => ['nullable', 'string'],
+            '情報.image_url' => ['nullable', 'url'],
+        ]);
+
+        return $validator->validate()['情報'];
     }
 
     private function resolvePageId(string $providedId): ?string
@@ -174,6 +225,33 @@ class NotionWebhookController extends Controller
     {
         return (bool) preg_match('/^[0-9a-fA-F]{32}$/', $id)
             || (bool) preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/', $id);
+    }
+
+    private function extractFromInformation(array $information): array
+    {
+        return [
+            'name' => Arr::get($information, 'title'),
+            'author' => Arr::get($information, 'author'),
+            'price' => $this->parsePriceText(Arr::get($information, 'kindle_price')),
+            'image' => Arr::get($information, 'image_url'),
+        ];
+    }
+
+    private function parsePriceText(?string $priceText): ?float
+    {
+        if ($priceText === null) {
+            return null;
+        }
+
+        $numeric = preg_replace('/[^\d.,]/', '', $priceText);
+
+        if ($numeric === null || $numeric === '') {
+            return null;
+        }
+
+        $normalised = Str::of($numeric)->replace(',', '')->value();
+
+        return is_numeric($normalised) ? (float) $normalised : null;
     }
 
     private function logDebug(string $message, array $context = []): void
