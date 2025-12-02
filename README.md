@@ -53,6 +53,7 @@ Notion から呼び出される Laravel 製の webhook を `routes/api.php` に�
 `.env.example` をコピーして `.env` を用意してください。
 
 - `WEBHOOK_AUTH_KEY`: Notion からのリクエストヘッダーに設定する認証キー。
+- `DOWNLOAD_WEBHOOK_IMAGE`: `true` の場合、Webhook で渡された画像 URL を取得し、`public/imgs` に保存したパスを Notion に登録します。
 - `NOTION_API_KEY`: Notion 公式 API の統合トークン。
 - `NOTION_DATA_SOURCE_ID`: Data Source ID（データベース ID ではなく data source を指定）。Unique ID プロパティから page_id を引くために Query する際に利用します。必須です。
 - `NOTION_VERSION`: API バージョン。仕様通り `2025-09-03` をデフォルトに設定。
@@ -96,7 +97,7 @@ Notion のレコード更新は page_id に対してのみ行われます。Uniq
 - select: 該当オプションが存在しない場合 Notion 側で自動生成されます。
 - date: `YYYY-MM-DD` 形式で指定してください。
 - number: 数値（例: 1800.0）。
-- image: 外部 URL のまま `files` プロパティとして登録します（画像バイナリは送信しません）。
+- image: `DOWNLOAD_WEBHOOK_IMAGE` が `true` の場合はダウンロードしたローカルファイルの URL を、`false` の場合は外部 URL のまま `files` プロパティとして登録します。
 
 ## エラーハンドリング
 
