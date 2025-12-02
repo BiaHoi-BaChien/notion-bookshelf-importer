@@ -7,6 +7,8 @@ use App\Services\NotionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -46,6 +48,8 @@ class NotionWebhookController extends Controller
         $extracted = $this->extractFromInformation($payload['情報']);
 
         $this->logDebug('Book data extracted', $extracted);
+
+        $extracted = $this->downloadImageIfConfigured($extracted);
 
         if (! $this->bookExtractionService->extractionIsComplete($extracted)) {
             if ($this->bookExtractionService->extractionHasAllButPrice($extracted)) {
@@ -255,6 +259,70 @@ class NotionWebhookController extends Controller
         if (config('app.debug')) {
             Log::debug($message, $context);
         }
+    }
+
+    private function downloadImageIfConfigured(array $extracted): array
+    {
+        if (! config('notion.download_webhook_image')) {
+            return $extracted;
+        }
+
+        $imageUrl = Arr::get($extracted, 'image');
+
+        if (! $imageUrl) {
+            return $extracted;
+        }
+
+        try {
+            $response = Http::get($imageUrl);
+        } catch (\Exception $exception) {
+            Log::warning('Failed to download image from webhook URL.', [
+                'image_url' => $imageUrl,
+                'exception' => $exception->getMessage(),
+            ]);
+
+            return $extracted;
+        }
+
+        if ($response->failed()) {
+            Log::warning('Image download response returned error.', [
+                'image_url' => $imageUrl,
+                'status' => $response->status(),
+            ]);
+
+            return $extracted;
+        }
+
+        $extension = $this->determineExtension($response->header('Content-Type'), $imageUrl);
+
+        $directory = public_path('imgs');
+        File::ensureDirectoryExists($directory);
+
+        $filename = Str::uuid()->toString() . ($extension ? ".{$extension}" : '');
+        $filePath = $directory . '/' . $filename;
+
+        File::put($filePath, $response->body());
+
+        $extracted['image'] = rtrim((string) config('app.url'), '/') . '/imgs/' . $filename;
+
+        return $extracted;
+    }
+
+    private function determineExtension(?string $contentType, string $imageUrl): ?string
+    {
+        $extensionFromUrl = pathinfo((string) (parse_url($imageUrl, PHP_URL_PATH) ?? ''), PATHINFO_EXTENSION);
+
+        if ($extensionFromUrl !== '') {
+            return $extensionFromUrl;
+        }
+
+        return match ($contentType) {
+            'image/jpeg', 'image/jpg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+            default => null,
+        };
     }
 
 }
