@@ -7,4 +7,5 @@ return [
     'base_url' => env('NOTION_BASE_URL', 'https://api.notion.com/v1'),
     'property_mapping' => json_decode(env('NOTION_PROPERTY_MAPPING', '{}'), true) ?? [],
     'webhook_key' => env('WEBHOOK_AUTH_KEY'),
+    'download_webhook_image' => env('DOWNLOAD_WEBHOOK_IMAGE', false),
 ];
