@@ -273,8 +273,14 @@ class NotionWebhookController extends Controller
             return $extracted;
         }
 
+        $headers = [
+            'Accept' => '*/*',
+            'User-Agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+            'Accept-Language' => 'en-US,en;q=0.9',
+        ];
+
         try {
-            $response = Http::get($imageUrl);
+            $response = Http::withHeaders($headers)->get($imageUrl);
         } catch (\Exception $exception) {
             Log::warning('Failed to download image from webhook URL.', [
                 'image_url' => $imageUrl,
@@ -288,6 +294,7 @@ class NotionWebhookController extends Controller
             Log::warning('Image download response returned error.', [
                 'image_url' => $imageUrl,
                 'status' => $response->status(),
+                'body' => $response->body(),
             ]);
 
             return $extracted;
