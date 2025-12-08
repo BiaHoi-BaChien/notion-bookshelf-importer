@@ -14,6 +14,7 @@ class LogoutControllerTest extends TestCase
         $originalToken = $session->token();
 
         $response = $this
+            ->withCookie($session->getName(), $session->getId())
             ->withCookie('XSRF-TOKEN', $originalToken)
             ->withHeader('X-CSRF-TOKEN', $originalToken)
             ->postJson(route('logout'));
